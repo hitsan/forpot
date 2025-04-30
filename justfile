@@ -6,3 +6,9 @@ run:
 
 clean:
   rm -fr ./bin/*
+
+test module:
+  go test {{module}}
+
+test-all:
+  go test ./...
