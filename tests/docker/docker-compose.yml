@@ -1,0 +1,9 @@
+services:
+  ssh-test:
+    build:
+      context: .
+    volumes:
+      - ./server:/server
+    ports:
+      - 2222:22
+    tty: true
