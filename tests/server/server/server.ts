@@ -1,13 +1,26 @@
-let arg = Deno.args[0];
-let port = Number(arg);
+const parsePorts = (args: string[]): Number[] => {
+  const ports = args.flatMap(arg => {
+    const port = Number(arg);
+    if (Number.isNaN(port)) {
+      return [];
+    }
+    return port;
+  });
+  return ports;
+}
 
-if (typeof port !== 'number') {
+const launch = (port) => {
+  Deno.serve(
+    { port : port },
+    (req: Request) => {
+      return new Response(`Hello ${arg}`);
+    }
+  );
+}
+
+const ports = parsePorts(Deno.args);
+if (ports.length == 0) {
   Deno.exit(0);
 }
 
-Deno.serve(
-  { port : port },
-  (req: Request) => {
-    return new Response(`Hello ${arg}`);
-  }
-);
+ports.map(port => launch(port));
