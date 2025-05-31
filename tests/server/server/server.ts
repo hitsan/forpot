@@ -1,3 +1,8 @@
+const serve = () => {
+  
+
+}
+
 const parsePorts = (args: string[]): Number[] => {
   const ports = args.flatMap(arg => {
     const port = Number(arg);
@@ -10,12 +15,13 @@ const parsePorts = (args: string[]): Number[] => {
 }
 
 const launch = (port) => {
-  Deno.serve(
+  const server = Deno.serve(
     { port : port },
     (req: Request) => {
-      return new Response(`Hello ${arg}`);
+      return new Response(`Running:${arg}`);
     }
   );
+  return server;
 }
 
 const ports = parsePorts(Deno.args);
@@ -23,4 +29,8 @@ if (ports.length == 0) {
   Deno.exit(0);
 }
 
-ports.map(port => launch(port));
+const servers = ports.map(port => launch(port));
+for (let server of servers) {
+  server.shutdown();
+}
+
