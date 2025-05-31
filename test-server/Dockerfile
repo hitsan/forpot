@@ -1,7 +1,8 @@
-FROM denoland/deno:ubuntu-2.3.1
+FROM denoland/deno:ubuntu-2.3.5
 
 RUN apt-get -y update \
- && apt-get -y --no-install-recommends install openssh-server \
+ && apt-get -y --no-install-recommends install \
+    openssh-server \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 RUN ssh-keygen -A \

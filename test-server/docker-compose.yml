@@ -1,9 +1,10 @@
 services:
   ssh-test:
+    container_name: forward_server
     build:
       context: .
     volumes:
-      - ./server:/server
+      - ./:/server
     ports:
       - 2222:22
-    tty: true
+    working_dir: /server
