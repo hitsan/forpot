@@ -7,4 +7,5 @@ services:
       - ./:/server
     ports:
       - 2222:22
+      - 8000:8000
     working_dir: /server
