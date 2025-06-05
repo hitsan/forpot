@@ -8,9 +8,13 @@ app.get('/', (c) => {
   return c.json({ message:'Running test server', servers: serverSession}, 200)
 })
 
-const getPort = async (c) => {
-  const data = await c.req.json()
-  return data.port
+const parsePort = (c): number | null => {
+  const portStr = c.req.param('port')
+  const port = parseInt(portStr, 10)
+  if (isNaN(port) || port <= 0 || port > 65535) {
+    return null
+  }
+  return port
 }
 
 const launchServer = (port) => {
@@ -25,9 +29,15 @@ const shutdownServer = (port) => {
 }
 
 app.post(
-  '/servers/launch',
-  async (c) => {
-    const port = await getPort(c)
+  '/servers/:port/launch',
+  (c) => {
+    const port = parsePort(c)
+    if (port == null) {
+      return c.json({ message: "Illegal port" }, 400)
+    }
+    if (port in serverSession) {
+      return c.json({ message: "Already lauched"}, 409)
+    }
     const server = launchServer(port)
     serverSession[port] = server
     return c.json({ port: port }, 200)
@@ -35,9 +45,15 @@ app.post(
 )
 
 app.post(
-  '/servers/down',
-  async (c) => {
-    const port = await getPort(c)
+  '/servers/:port/down',
+  (c) => {
+    const port = parsePort(c)
+    if (port == null) {
+      return c.json({ message: "Illegal port" }, 400)
+    }
+    if (!(port in serverSession)) {
+      return c.json({ message: "Not found port" }, 404)
+    }
     shutdownServer(port)
     delete serverSession[port]
     return c.json({ port: port }, 200)
