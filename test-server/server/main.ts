@@ -45,6 +45,16 @@ app.post(
 )
 
 app.post(
+  '/servers/all/down',
+  (c) => {
+    const ports = Object.keys(serverSession)
+    ports.map(port => shutdownServer(port))
+    serverSession = {}
+    return c.json({ message: "All server down"}, 400)
+  }
+)
+
+app.post(
   '/servers/:port/down',
   (c) => {
     const port = parsePort(c)
