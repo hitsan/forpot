@@ -8,4 +8,5 @@ services:
     ports:
       - 2222:22
       - 8000:8000
-    working_dir: /server
+    command: deno task start
+    working_dir: /server/server

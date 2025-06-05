@@ -40,7 +40,7 @@ app.post(
     }
     const server = launchServer(port)
     serverSession[port] = server
-    return c.json({ port: port }, 200)
+    return c.json({ up: port }, 200)
   }
 )
 
@@ -66,7 +66,7 @@ app.post(
     }
     shutdownServer(port)
     delete serverSession[port]
-    return c.json({ port: port }, 200)
+    return c.json({ down: port }, 200)
   }
 )
 
