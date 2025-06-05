@@ -1,0 +1,12 @@
+services:
+  ssh-test:
+    container_name: forward_server
+    build:
+      context: .
+    volumes:
+      - ./:/server
+    ports:
+      - 2222:22
+      - 8000:8000
+    command: deno task start
+    working_dir: /server/server
