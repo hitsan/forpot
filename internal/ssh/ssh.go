@@ -10,6 +10,7 @@ func CreateSshConfig(user string) ssh.ClientConfig {
 				User: user,
 				Auth: []ssh.AuthMethod{
 						ssh.Password(""),
+					}
 				}
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		}
