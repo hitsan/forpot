@@ -7,11 +7,12 @@ run:
 clean:
   rm -fr ./bin/*
 
-test module:
-  go test {{module}}
-
-test-all:
-  go test ./...
+test module="all":
+  if [ "{{module}}" == "all" ]; then \
+    go test ./...; \
+  else \
+    go test {{module}}_test.go; \
+  fi
 
 up-test-server:
   docker compose -f ./test-server/docker-compose.yml up -d
