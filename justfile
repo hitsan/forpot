@@ -11,7 +11,7 @@ test module="all":
   if [ "{{module}}" == "all" ]; then \
     go test ./...; \
   else \
-    go test {{module}}_test.go; \
+    go test ./{{module}}; \
   fi
 
 up-test-server:
