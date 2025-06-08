@@ -20,7 +20,6 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 func Connect(config ssh.ClientConfig, host string, port string) {
 		addr := fmt.Sprintf("%s:%s", host, port)
 		client, err := ssh.Dial("tcp", addr, &config)
-		fmt.Println("aaa")
 		if err != nil {
 				log.Fatal("Failed to dial: ", err)
 		}
