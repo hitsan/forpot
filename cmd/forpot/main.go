@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"forpot/internal/ssh"
+)
 
 func main() {
-	fmt.Println("Hello Nix!")
+	config := ssh.CreateSshConfig("root", "password")
+	ssh.Connect(config, "127.0.0.1", "2222")
+	fmt.Println("config %+v", config)
 }

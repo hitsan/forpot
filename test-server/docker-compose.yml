@@ -8,5 +8,5 @@ services:
     ports:
       - 2222:22
       - 8000:8000
-    command: deno task start
+    command: /server/server/init.sh
     working_dir: /server/server

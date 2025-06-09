@@ -19,6 +19,9 @@ const parsePort = (c): number | null => {
 
 const launchServer = (port) => {
   const app = new Hono()
+  app.get('/', (c) => {
+    return c.json({ port: port })
+  })
   const server = Deno.serve({ port: port }, app.fetch )
   return server
 }
