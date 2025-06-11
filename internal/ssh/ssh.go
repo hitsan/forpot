@@ -41,5 +41,5 @@ func Connect(config ssh.ClientConfig, host string, port string) {
 		if err := session.Run(command); err != nil {
 				log.Fatal("Faild to run command", err)
 		}
-		fmt.Println("output: %s", b.String())
+		fmt.Printf("output: %s", b.String())
 }
