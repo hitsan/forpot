@@ -17,6 +17,15 @@ func parseIp(ip string) net.IP {
 		return net.IP(ipBytes)
 }
 
+func parsePort(portHex string) int {
+		portI32, err := strconv.ParseInt(portHex, 16, 0)
+		if err != nil {
+				log.Fatal("Failed to parse port")
+		}
+		port := int(portI32)
+		return port
+}
+
 func ParseLineForPort(line string) int {
 		token := strings.Split(line, " ")
 		address := token[1]
@@ -32,9 +41,9 @@ func ParseLineForPort(line string) int {
 		return port
 }
 
-func ParsePort(str string) []int {
-		//lines := strings.Split(str, "\n")
-		ports := []int{9000, 8000}
-		return ports
-}
+//func ParsePort(str string) []int {
+//		//lines := strings.Split(str, "\n")
+//		ports := []int{9000, 8000}
+//		return ports
+//}
 
