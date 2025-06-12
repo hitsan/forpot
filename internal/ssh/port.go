@@ -4,7 +4,18 @@ import (
 		"strings"
 		"strconv"
 		"log"
+		"net"
 )
+
+func parseIp(ip string) net.IP {
+		ipBytes := []byte{}
+		for i := 6; i >= 0; i -= 2 {
+				num := ip[i:i+2]
+				octet, _ := strconv.ParseInt(num, 16, 0)
+				ipBytes = append(ipBytes, byte(octet))
+		}
+		return net.IP(ipBytes)
+}
 
 func ParseLineForPort(line string) int {
 		token := strings.Split(line, " ")
