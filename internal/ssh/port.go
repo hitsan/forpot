@@ -32,12 +32,12 @@ func ParseLineForPort(line string) int {
 	if address[0:8] != "00000000" {
 		return 0
 	}
-	port_hex := address[9:]
-	port_32, err := strconv.ParseInt(port_hex, 16, 0)
+	portHex := address[9:]
+	portI32, err := strconv.ParseInt(portHex, 16, 0)
 	if err != nil {
 		log.Println("Faild to parse port")
 	}
-	port := int(port_32)
+	port := int(portI32)
 	return port
 }
 
