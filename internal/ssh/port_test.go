@@ -31,6 +31,18 @@ func TestParsePort(t *testing.T) {
 	}
 }
 
+func TestCanListen(t *testing.T) {
+	statuses := []string{"0A", "01"}
+	wantStatus := []bool{true, false}
+	for i, status := range statuses {
+		got := canListen(status)
+		want := wantStatus[i]
+		if got != want {
+			t.Errorf("Error: get %t, but want %t", got, want)
+		}
+	}
+}
+
 func TestParse(t *testing.T) {
 	line := `0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0`
 	got := ParseLineForPort(line)

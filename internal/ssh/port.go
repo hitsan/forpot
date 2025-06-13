@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+func canListen(status string) bool {
+	if status != "0A" {
+		return false
+	}
+	return true
+}
+
 func parseIp(ip string) net.IP {
 	ipBytes := []byte{}
 	for i := 6; i >= 0; i -= 2 {
