@@ -1,43 +1,43 @@
 package ssh
 
 import (
-		"testing"
-		"net"
-		"strconv"
+	"net"
+	"strconv"
+	"testing"
 )
 
 func TestParseIP(t *testing.T) {
-		testData := []string{"00000000", "020012AC"}
-		wantData := []string{"0.0.0.0", "172.18.0.2"}
-		for i, data := range testData {
-				got := parseIp(data).String()
-				want := net.ParseIP(wantData[i]).String()
-				if got != want {
-						t.Errorf("Error: got= %s, want= %s", got, want)
-				}
+	testData := []string{"00000000", "020012AC"}
+	wantData := []string{"0.0.0.0", "172.18.0.2"}
+	for i, data := range testData {
+		got := parseIp(data).String()
+		want := net.ParseIP(wantData[i]).String()
+		if got != want {
+			t.Errorf("Error: got= %s, want= %s", got, want)
 		}
+	}
 }
 
 func TestParsePort(t *testing.T) {
-		testData := []string{"270F", "1F40"}
-		wantData := []string{"9999", "8000"}
-		for i, data := range testData {
-				gotInt := parsePort(data)
-				got := strconv.Itoa(gotInt)
-				want := wantData[i]
-				if got != want {
-						t.Errorf("Error: got= %s, want= %s", got, want)
-				}
+	testData := []string{"270F", "1F40"}
+	wantData := []string{"9999", "8000"}
+	for i, data := range testData {
+		gotInt := parsePort(data)
+		got := strconv.Itoa(gotInt)
+		want := wantData[i]
+		if got != want {
+			t.Errorf("Error: got= %s, want= %s", got, want)
 		}
+	}
 }
 
 func TestParse(t *testing.T) {
-   	line := `0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0`
-		got := ParseLineForPort(line)
-		want := 9999
-		if got != want {
-				t.Errorf("Error: got %d, but want %d", got, want)
-		}
+	line := `0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0`
+	got := ParseLineForPort(line)
+	want := 9999
+	if got != want {
+		t.Errorf("Error: got %d, but want %d", got, want)
+	}
 }
 
 //func TestParsePort(t *testing.T) {
@@ -56,4 +56,3 @@ func TestParse(t *testing.T) {
 //				}
 //		}
 //}
- 

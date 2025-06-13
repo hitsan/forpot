@@ -1,8 +1,8 @@
 package ssh
 
 import (
-	"testing"
 	"golang.org/x/crypto/ssh"
+	"testing"
 )
 
 func TestSshConfig(t *testing.T) {
