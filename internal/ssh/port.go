@@ -31,6 +31,10 @@ func parseIp(ip string) net.IP {
 	return net.IP(ipBytes)
 }
 
+func canPortForward(line string) bool {
+	return true
+}
+
 func parsePort(portHex string) int {
 	portI32, err := strconv.ParseInt(portHex, 16, 0)
 	if err != nil {
