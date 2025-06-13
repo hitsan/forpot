@@ -14,6 +14,13 @@ func canListen(status string) bool {
 	return true
 }
 
+func equalsUid(uid string, targetUid string) bool {
+	if uid != targetUid {
+		return false
+	}
+	return true
+}
+
 func parseIp(ip string) net.IP {
 	ipBytes := []byte{}
 	for i := 6; i >= 0; i -= 2 {

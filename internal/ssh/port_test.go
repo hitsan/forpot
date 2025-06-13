@@ -33,12 +33,25 @@ func TestParsePort(t *testing.T) {
 
 func TestCanListen(t *testing.T) {
 	statuses := []string{"0A", "01"}
-	wantStatus := []bool{true, false}
+	wants := []bool{true, false}
 	for i, status := range statuses {
 		got := canListen(status)
-		want := wantStatus[i]
+		want := wants[i]
 		if got != want {
 			t.Errorf("Error: get %t, but want %t", got, want)
+		}
+	}
+}
+
+func TestEqualsUid(t *testing.T) {
+	testUid := "0"
+	uids := []string{"2", "0"}
+	wants := []bool{false, true}
+	for i, uid := range uids {
+		got := equalsUid(testUid, uid)
+		want := wants[i]
+		if got != want {
+			t.Errorf("Error: test UID %s, but uid %s", testUid, uid)
 		}
 	}
 }
