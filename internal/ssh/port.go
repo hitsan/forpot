@@ -2,37 +2,29 @@ package ssh
 
 import (
 	"log"
-	"net"
 	"strconv"
 	"strings"
 )
 
 func canListen(status string) bool {
-	if status != "0A" {
-		return false
-	}
-	return true
+	return status == "0A"
 }
 
 func equalsUid(uid string, targetUid string) bool {
-	if uid != targetUid {
-		return false
-	}
-	return true
+	return uid == targetUid
 }
 
-func parseIp(ip string) net.IP {
-	ipBytes := []byte{}
-	for i := 6; i >= 0; i -= 2 {
-		num := ip[i : i+2]
-		octet, _ := strconv.ParseInt(num, 16, 0)
-		ipBytes = append(ipBytes, byte(octet))
-	}
-	return net.IP(ipBytes)
+func isLocalhost(ip string) bool {
+	return ip == "00000000"
 }
 
 func canPortForward(line string) bool {
-	return true
+	items := strings.Fields(line)
+	address := items[1]
+	isLocalhostIp := isLocalhost(address[:8])
+	canLitesned := canListen(items[3])
+	isEquqlsUid := equalsUid("0", items[7])
+	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
 func parsePort(portHex string) int {

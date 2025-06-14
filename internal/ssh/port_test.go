@@ -1,19 +1,22 @@
 package ssh
 
 import (
-	"net"
 	"strconv"
 	"testing"
 )
 
-func TestParseIP(t *testing.T) {
-	testData := []string{"00000000", "020012AC"}
-	wantData := []string{"0.0.0.0", "172.18.0.2"}
-	for i, data := range testData {
-		got := parseIp(data).String()
-		want := net.ParseIP(wantData[i]).String()
-		if got != want {
-			t.Errorf("Error: got= %s, want= %s", got, want)
+func TestIsLocalhost(t *testing.T) {
+	tests := []struct {
+		input			string
+		expected  bool
+	} {
+		{"00000000", true},
+		{"020012AC", false},
+	}
+	for _, test := range tests {
+		got := isLocalhost(test.input)
+		if got != test.expected {
+			t.Errorf("Error: expect %v, but %v in %s", test.expected, got, test.input)
 		}
 	}
 }
@@ -66,10 +69,10 @@ func TestCanPortForward(t *testing.T) {
 		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     1        0 37861 1 0000000000000000 100 0 0 10 0", false},
 		{"0: 20000001:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", false},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
 		got := canPortForward(test.input)
 		if got != test.want {
-			t.Errorf("Error: got %t, but want %t", got, test.want)
+			t.Errorf("Error: got %t, but want %t in %d times", got, test.want, i)
 		}
 	}
 }
