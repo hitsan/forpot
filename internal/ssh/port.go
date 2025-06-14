@@ -27,15 +27,6 @@ func canPortForward(line string) bool {
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
-func parsePort(portHex string) int {
-	portI32, err := strconv.ParseInt(portHex, 16, 0)
-	if err != nil {
-		log.Fatal("Failed to parse port")
-	}
-	port := int(portI32)
-	return port
-}
-
 func ParseLineForPort(line string) int {
 	token := strings.Split(line, " ")
 	address := token[1]

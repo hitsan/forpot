@@ -1,7 +1,6 @@
 package ssh
 
 import (
-	"strconv"
 	"testing"
 )
 
@@ -17,19 +16,6 @@ func TestIsLocalhost(t *testing.T) {
 		got := isLocalhost(test.input)
 		if got != test.expected {
 			t.Errorf("Error: expect %v, but %v in %s", test.expected, got, test.input)
-		}
-	}
-}
-
-func TestParsePort(t *testing.T) {
-	testData := []string{"270F", "1F40"}
-	wantData := []string{"9999", "8000"}
-	for i, data := range testData {
-		gotInt := parsePort(data)
-		got := strconv.Itoa(gotInt)
-		want := wantData[i]
-		if got != want {
-			t.Errorf("Error: got= %s, want= %s", got, want)
 		}
 	}
 }
