@@ -18,12 +18,12 @@ func isLocalhost(ip string) bool {
 	return ip == "00000000"
 }
 
-func canPortForward(line string) bool {
+func canPortForward(line string, uid string) bool {
 	items := strings.Fields(line)
 	address := items[1]
 	isLocalhostIp := isLocalhost(address[:8])
 	canLitesned := canListen(items[3])
-	isEquqlsUid := equalsUid("0", items[7])
+	isEquqlsUid := equalsUid(uid, items[7])
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 

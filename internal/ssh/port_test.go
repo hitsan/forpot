@@ -64,7 +64,7 @@ func TestCanPortForward(t *testing.T) {
 		{"0: 20000001:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", false},
 	}
 	for i, test := range tests {
-		got := canPortForward(test.input)
+		got := canPortForward(test.input, "0")
 		if got != test.want {
 			t.Errorf("Error: got %t, but want %t in %d times", got, test.want, i)
 		}
