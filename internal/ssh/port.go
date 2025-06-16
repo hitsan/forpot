@@ -27,6 +27,12 @@ func canPortForward(line string) bool {
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
+func parsePort(portHex string) string {
+	portI64, _ := strconv.ParseInt(portHex, 16, 64)
+	port := strconv.FormatInt(portI64, 10)
+	return port
+}
+
 func ParseLineForPort(line string) int {
 	token := strings.Split(line, " ")
 	address := token[1]
@@ -42,8 +48,3 @@ func ParseLineForPort(line string) int {
 	return port
 }
 
-//func ParsePort(str string) []int {
-//		//lines := strings.Split(str, "\n")
-//		ports := []int{9000, 8000}
-//		return ports
-//}
