@@ -1,7 +1,9 @@
 package ssh
 
 import (
+	"errors"
 	"log"
+	"os/user"
 	"strconv"
 	"strings"
 )
@@ -48,3 +50,23 @@ func ParseLineForPort(line string) int {
 	return port
 }
 
+func GetUid() (string, error) {
+	user, err := user.Current()
+	if err != nil {
+		return "", errors.New("Failed to get user info")
+	}
+	uid := user.Uid
+	return uid, nil
+}
+
+func parseLine(line string, uid string) (string, error) {
+	cpf := canPortForward(line, uid)
+	if !cpf {
+		return "", errors.New("This port is not forwardable")
+	}
+	items := strings.Fields(line)
+	address := items[1]
+	portHex := address[9:]
+	port := parsePort(portHex)
+	return port, nil
+}
