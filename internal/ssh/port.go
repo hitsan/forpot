@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"errors"
-	"log"
 	"os/user"
 	"strconv"
 	"strings"
@@ -35,21 +34,6 @@ func parsePort(portHex string) string {
 	return port
 }
 
-func ParseLineForPort(line string) int {
-	token := strings.Split(line, " ")
-	address := token[1]
-	if address[0:8] != "00000000" {
-		return 0
-	}
-	portHex := address[9:]
-	portI32, err := strconv.ParseInt(portHex, 16, 0)
-	if err != nil {
-		log.Println("Faild to parse port")
-	}
-	port := int(portI32)
-	return port
-}
-
 func GetUid() (string, error) {
 	user, err := user.Current()
 	if err != nil {
@@ -69,4 +53,17 @@ func parseLine(line string, uid string) (string, error) {
 	portHex := address[9:]
 	port := parsePort(portHex)
 	return port, nil
+}
+
+func FindForwardablePorts(netInfo string, uid string) []string {
+	splitedNetInfo := strings.Split(netInfo, "\n")
+	lines := splitedNetInfo[1:]
+	var ports []string
+	for _, line := range lines {
+		port, err := parseLine(line, uid)
+		if err == nil {
+			ports = append(ports, port)
+		}
+	}
+	return ports
 }
