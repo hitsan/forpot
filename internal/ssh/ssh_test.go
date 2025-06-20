@@ -1,17 +1,17 @@
 package ssh
 
 import (
-	"testing"
 	"golang.org/x/crypto/ssh"
+	"testing"
 )
 
 func TestSshConfig(t *testing.T) {
 	user := "hitsan"
-	got := CreateSshConfig(user)
+	got := CreateSshConfig(user, "password")
 	want := ssh.ClientConfig{
 		User: "hitsan",
 		Auth: []ssh.AuthMethod{
-			ssh.Password(""),
+			ssh.Password("password"),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
