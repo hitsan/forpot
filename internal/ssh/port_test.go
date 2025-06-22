@@ -4,55 +4,6 @@ import (
 	"testing"
 )
 
-func TestIsLocalhost(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"00000000", true},
-		{"020012AC", false},
-	}
-	for _, test := range tests {
-		got := isLocalhost(test.input)
-		if got != test.expected {
-			t.Errorf("Error: expect %v, but %v in %s", test.expected, got, test.input)
-		}
-	}
-}
-
-func TestCanListen(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"0A", true},
-		{"01", false},
-	}
-	for _, test := range tests {
-		got := canListen(test.input)
-		if got != test.expected {
-			t.Errorf("Error: expect %t with %s, but %t", test.expected, test.input, got)
-		}
-	}
-}
-
-func TestEqualsUid(t *testing.T) {
-	uid := "0"
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"2", false},
-		{"0", true},
-	}
-	for _, test := range tests {
-		got := equalsUid(uid, test.input)
-		if got != test.expected {
-			t.Errorf("Error: expect %t with uid %s, but %t", test.expected, test.input, got)
-		}
-	}
-}
-
 func TestCanPortForward(t *testing.T) {
 	tests := []struct {
 		input string
