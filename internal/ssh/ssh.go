@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"golang.org/x/crypto/ssh"
+	"io"
 	"log"
+	"net"
+	"time"
 )
 
 func CreateSshConfig(user string, password string) ssh.ClientConfig {
@@ -26,20 +29,68 @@ func Connect(config ssh.ClientConfig, host string, port string) {
 	}
 	defer client.Close()
 
-	session, err := client.NewSession()
+	for {
+		session, err := client.NewSession()
+		if err != nil {
+			log.Fatal("Failed to create new session", err)
+		}
+		defer session.Close()
+
+		var output bytes.Buffer
+		session.Stdout = &output
+		if err := session.Run("cat /proc/net/tcp"); err != nil {
+			log.Println("Command errpr:", err)
+		}
+		ports := FindForwardablePorts(output.String(), "0")
+		log.Println(ports)
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// PortForward creates a local port forwarding tunnel
+func PortForward(client *ssh.Client, localPort, remoteHost, remotePort string) error {
+	localAddr := fmt.Sprintf("localhost:%s", localPort)
+	remoteAddr := fmt.Sprintf("%s:%s", remoteHost, remotePort)
+
+	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
-		log.Fatal("Failed to create new session", err)
+		return fmt.Errorf("failed to listen on %s: %v", localAddr, err)
 	}
-	defer session.Close()
+	defer listener.Close()
 
-	var b bytes.Buffer
-	session.Stdout = &b
-	command := "/usr/bin/cat /proc/net/tcp"
+	log.Printf("Port forwarding: %s -> %s", localAddr, remoteAddr)
 
-	fmt.Println("middle")
+	for {
+		localConn, err := listener.Accept()
+		if err != nil {
+			return fmt.Errorf("failed to accept connection: %v", err)
+		}
 
-	if err := session.Run(command); err != nil {
-		log.Fatal("Faild to run command", err)
+		go func() {
+			defer localConn.Close()
+
+			remoteConn, err := client.Dial("tcp", remoteAddr)
+			if err != nil {
+				log.Printf("failed to dial remote: %v", err)
+				return
+			}
+			defer remoteConn.Close()
+
+			// Copy data bidirectionally
+			go io.Copy(localConn, remoteConn)
+			io.Copy(remoteConn, localConn)
+		}()
 	}
-	fmt.Printf("output: %s", b.String())
+}
+
+// ConnectWithPortForward establishes SSH connection and sets up port forwarding
+func ConnectWithPortForward(config ssh.ClientConfig, host, port, localPort, remoteHost, remotePort string) error {
+	addr := fmt.Sprintf("%s:%s", host, port)
+	client, err := ssh.Dial("tcp", addr, &config)
+	if err != nil {
+		return fmt.Errorf("failed to dial: %v", err)
+	}
+	defer client.Close()
+
+	return PortForward(client, localPort, remoteHost, remotePort)
 }

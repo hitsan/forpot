@@ -57,7 +57,8 @@ func parseLine(line string, uid string) (string, error) {
 
 func FindForwardablePorts(netInfo string, uid string) []string {
 	splitedNetInfo := strings.Split(netInfo, "\n")
-	lines := splitedNetInfo[1:]
+	length := len(splitedNetInfo)
+	lines := splitedNetInfo[1 : length-1]
 	var ports []string
 	for _, line := range lines {
 		port, err := parseLine(line, uid)
