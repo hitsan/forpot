@@ -26,10 +26,10 @@ func TestCanPortForward(t *testing.T) {
 func TestParsePort(t *testing.T) {
 	tests := []struct {
 		input string
-		want  string
+		want  int
 	}{
-		{"270F", "9999"},
-		{"AD15", "44309"},
+		{"270F", 9999},
+		{"AD15", 44309},
 	}
 	for _, test := range tests {
 		got, err := parsePort(test.input)
@@ -38,7 +38,7 @@ func TestParsePort(t *testing.T) {
 			continue
 		}
 		if got != test.want {
-			t.Errorf("Error got: %s, want: %s", got, test.want)
+			t.Errorf("Error got: %d, want: %d", got, test.want)
 		}
 	}
 }
@@ -46,17 +46,17 @@ func TestParsePort(t *testing.T) {
 func TestParseLine(t *testing.T) {
 	tests := []struct {
 		line   string
-		port   string
+		port   int
 		errMsg string
 	}{
-		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", "9999", ""},
-		{"1: 0B000000:AD15 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37784 1 0000000000000000 100 0 0 10 0", "", "This port is not forwardable"},
+		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", 9999, ""},
+		{"1: 0B000000:AD15 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37784 1 0000000000000000 100 0 0 10 0", 0, "This port is not forwardable"},
 	}
 	uid := Uid("0")
 	for _, test := range tests {
 		port, err := parseLine(test.line, uid)
 		if port != test.port {
-			t.Errorf("Error: got %s, expected: %s", port, test.port)
+			t.Errorf("Error: got %d, expected: %d", port, test.port)
 		}
 		if err != nil {
 			errMsg := err.Error()
@@ -78,7 +78,7 @@ func TestFindForwardablePorts(t *testing.T) {
    5: 00000000:1F40 00000000:0000 01 00000000:00000000 00:00000000 00000000     0        0 56126 1 0000000000000000 100 0 0 10 0
    6: 0B00007F:81A1 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 59682 1 0000000000000000 100 0 0 10 0`
 
-	expected := []string{"9999", "888", "234", "22"}
+	expected := []int{9999, 888, 234, 22}
 	expectedLen := len(expected)
 	uid := Uid("0")
 	ports := FindForwardablePorts(lines, uid)
@@ -91,7 +91,7 @@ func TestFindForwardablePorts(t *testing.T) {
 
 	for i := 0; i < expectedLen; i++ {
 		if ports[i] != expected[i] {
-			t.Errorf("Error: got %s, expected: %s", ports[i], expected[i])
+			t.Errorf("Error: got %d, expected: %d", ports[i], expected[i])
 		}
 	}
 }

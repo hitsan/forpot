@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,32 +24,35 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	return config
 }
 
-func fetchUid(client *ssh.Client) Uid {
+func fetchUid(client *ssh.Client) (Uid, error) {
 	session, err := client.NewSession()
 	if err != nil {
-		return ""
+		return "", errors.New("Failed to create Session")
 	}
 	defer session.Close()
 
 	var output bytes.Buffer
 	session.Stdout = &output
 	if err := session.Run("cat /proc/self/status | grep Uid"); err != nil {
-		return ""
+		return "", errors.New("Failed to get UID")
 	}
 	items := strings.Fields(output.String())
 	uid := Uid(items[1])
-	return uid
+	return uid, nil
 }
 
-func InitSshConnect(config ssh.ClientConfig, port string) {
-	addr := fmt.Sprintf("127.0.0.1:%s", port)
-	client, err := ssh.Dial("tcp", addr, &config)
+func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr) error {
+	client, err := ssh.Dial("tcp", addr.String(), &config)
 	if err != nil {
-		log.Fatal("Failed to dial: ", err)
+		msg := "Failed to dial:" + addr.String()
+		return errors.New(msg)
 	}
 	defer client.Close()
 
-	uid := fetchUid(client)
+	uid, err := fetchUid(client)
+	if err != nil {
+		return err
+	}
 
 	for {
 		session, err := client.NewSession()

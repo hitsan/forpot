@@ -30,35 +30,34 @@ func canPortForward(line string, uid Uid) bool {
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
-func parsePort(portHex string) (string, error) {
+func parsePort(portHex string) (int, error) {
 	portI64, err := strconv.ParseInt(portHex, 16, 64)
 	if err != nil {
-		return "", errors.New("Failed to parse port")
+		return 0, errors.New("Failed to parse port")
 	}
-	port := strconv.FormatInt(portI64, 10)
-	return port, nil
+	return int(portI64), nil
 }
 
-func parseLine(line string, uid Uid) (string, error) {
+func parseLine(line string, uid Uid) (int, error) {
 	cpf := canPortForward(line, uid)
 	if !cpf {
-		return "", errors.New("This port is not forwardable")
+		return 0, errors.New("This port is not forwardable")
 	}
 	items := strings.Fields(line)
 	address := items[1]
 	portHex := address[9:]
 	port, err := parsePort(portHex)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	return port, nil
 }
 
-func FindForwardablePorts(netInfo string, uid Uid) []string {
+func FindForwardablePorts(netInfo string, uid Uid) []int {
 	splitedNetInfo := strings.Split(netInfo, "\n")
 	length := len(splitedNetInfo)
 	lines := splitedNetInfo[1 : length-1]
-	var ports []string
+	var ports []int
 	for _, line := range lines {
 		port, err := parseLine(line, uid)
 		if err != nil {
