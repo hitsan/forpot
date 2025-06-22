@@ -80,7 +80,11 @@ func TestParsePort(t *testing.T) {
 		{"AD15", "44309"},
 	}
 	for _, test := range tests {
-		got := parsePort(test.input)
+		got, err := parsePort(test.input)
+		if err != nil {
+			t.Errorf("parsePort error: %v", err)
+			continue
+		}
 		if got != test.want {
 			t.Errorf("Error got: %s, want: %s", got, test.want)
 		}

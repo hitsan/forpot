@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"errors"
-	"os/user"
 	"strconv"
 	"strings"
 )
@@ -28,10 +27,13 @@ func canPortForward(line string, uid string) bool {
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
-func parsePort(portHex string) string {
-	portI64, _ := strconv.ParseInt(portHex, 16, 64)
+func parsePort(portHex string) (string, error) {
+	portI64, err := strconv.ParseInt(portHex, 16, 64)
+	if err != nil {
+		return "", errors.New("Failed to parse port")
+	}
 	port := strconv.FormatInt(portI64, 10)
-	return port
+	return port, nil
 }
 
 func parseLine(line string, uid string) (string, error) {
@@ -42,7 +44,10 @@ func parseLine(line string, uid string) (string, error) {
 	items := strings.Fields(line)
 	address := items[1]
 	portHex := address[9:]
-	port := parsePort(portHex)
+	port, err := parsePort(portHex)
+	if err != nil {
+		return "", err
+	}
 	return port, nil
 }
 
@@ -53,9 +58,10 @@ func FindForwardablePorts(netInfo string, uid string) []string {
 	var ports []string
 	for _, line := range lines {
 		port, err := parseLine(line, uid)
-		if err == nil {
-			ports = append(ports, port)
+		if err != nil {
+			continue
 		}
+		ports = append(ports, port)
 	}
 	return ports
 }

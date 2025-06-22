@@ -40,8 +40,8 @@ func fetchUid(client *ssh.Client) string {
 	return uid
 }
 
-func InitSshConnect(config ssh.ClientConfig, host string, port string) {
-	addr := fmt.Sprintf("%s:%s", host, port)
+func InitSshConnect(config ssh.ClientConfig, port string) {
+	addr := fmt.Sprintf("127.0.0.1:%s", port)
 	client, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
 		log.Fatal("Failed to dial: ", err)
