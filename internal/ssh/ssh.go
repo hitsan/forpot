@@ -23,7 +23,7 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	return config
 }
 
-func fetchUid(client *ssh.Client) string {
+func fetchUid(client *ssh.Client) Uid {
 	session, err := client.NewSession()
 	if err != nil {
 		return ""
@@ -36,7 +36,7 @@ func fetchUid(client *ssh.Client) string {
 		return ""
 	}
 	items := strings.Fields(output.String())
-	uid := items[1]
+	uid := Uid(items[1])
 	return uid
 }
 

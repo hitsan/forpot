@@ -6,11 +6,13 @@ import (
 	"strings"
 )
 
+type Uid string
+
 func canListen(status string) bool {
 	return status == "0A"
 }
 
-func equalsUid(uid string, targetUid string) bool {
+func equalsUid(uid Uid, targetUid Uid) bool {
 	return uid == targetUid
 }
 
@@ -18,12 +20,13 @@ func isLocalhost(ip string) bool {
 	return ip == "00000000"
 }
 
-func canPortForward(line string, uid string) bool {
+func canPortForward(line string, uid Uid) bool {
 	items := strings.Fields(line)
 	address := items[1]
 	isLocalhostIp := isLocalhost(address[:8])
 	canLitesned := canListen(items[3])
-	isEquqlsUid := equalsUid(uid, items[7])
+	targetUid := Uid(items[7])
+	isEquqlsUid := equalsUid(uid, targetUid)
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
@@ -36,7 +39,7 @@ func parsePort(portHex string) (string, error) {
 	return port, nil
 }
 
-func parseLine(line string, uid string) (string, error) {
+func parseLine(line string, uid Uid) (string, error) {
 	cpf := canPortForward(line, uid)
 	if !cpf {
 		return "", errors.New("This port is not forwardable")
@@ -51,7 +54,7 @@ func parseLine(line string, uid string) (string, error) {
 	return port, nil
 }
 
-func FindForwardablePorts(netInfo string, uid string) []string {
+func FindForwardablePorts(netInfo string, uid Uid) []string {
 	splitedNetInfo := strings.Split(netInfo, "\n")
 	length := len(splitedNetInfo)
 	lines := splitedNetInfo[1 : length-1]

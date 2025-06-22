@@ -14,8 +14,9 @@ func TestCanPortForward(t *testing.T) {
 		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     1        0 37861 1 0000000000000000 100 0 0 10 0", false},
 		{"0: 20000001:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", false},
 	}
+	uid := Uid("0")
 	for i, test := range tests {
-		got := canPortForward(test.input, "0")
+		got := canPortForward(test.input, uid)
 		if got != test.want {
 			t.Errorf("Error: got %t, but want %t in %d times", got, test.want, i)
 		}
@@ -51,8 +52,9 @@ func TestParseLine(t *testing.T) {
 		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", "9999", ""},
 		{"1: 0B000000:AD15 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37784 1 0000000000000000 100 0 0 10 0", "", "This port is not forwardable"},
 	}
+	uid := Uid("0")
 	for _, test := range tests {
-		port, err := parseLine(test.line, "0")
+		port, err := parseLine(test.line, uid)
 		if port != test.port {
 			t.Errorf("Error: got %s, expected: %s", port, test.port)
 		}
@@ -78,7 +80,8 @@ func TestFindForwardablePorts(t *testing.T) {
 
 	expected := []string{"9999", "888", "234", "22"}
 	expectedLen := len(expected)
-	ports := FindForwardablePorts(lines, "0")
+	uid := Uid("0")
+	ports := FindForwardablePorts(lines, uid)
 	portsLen := len(ports)
 
 	if portsLen != expectedLen {
