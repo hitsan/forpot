@@ -4,55 +4,6 @@ import (
 	"testing"
 )
 
-func TestIsLocalhost(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"00000000", true},
-		{"020012AC", false},
-	}
-	for _, test := range tests {
-		got := isLocalhost(test.input)
-		if got != test.expected {
-			t.Errorf("Error: expect %v, but %v in %s", test.expected, got, test.input)
-		}
-	}
-}
-
-func TestCanListen(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"0A", true},
-		{"01", false},
-	}
-	for _, test := range tests {
-		got := canListen(test.input)
-		if got != test.expected {
-			t.Errorf("Error: expect %t with %s, but %t", test.expected, test.input, got)
-		}
-	}
-}
-
-func TestEqualsUid(t *testing.T) {
-	uid := "0"
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"2", false},
-		{"0", true},
-	}
-	for _, test := range tests {
-		got := equalsUid(uid, test.input)
-		if got != test.expected {
-			t.Errorf("Error: expect %t with uid %s, but %t", test.expected, test.input, got)
-		}
-	}
-}
-
 func TestCanPortForward(t *testing.T) {
 	tests := []struct {
 		input string
@@ -63,8 +14,9 @@ func TestCanPortForward(t *testing.T) {
 		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     1        0 37861 1 0000000000000000 100 0 0 10 0", false},
 		{"0: 20000001:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", false},
 	}
+	uid := Uid("0")
 	for i, test := range tests {
-		got := canPortForward(test.input, "0")
+		got := canPortForward(test.input, uid)
 		if got != test.want {
 			t.Errorf("Error: got %t, but want %t in %d times", got, test.want, i)
 		}
@@ -74,15 +26,19 @@ func TestCanPortForward(t *testing.T) {
 func TestParsePort(t *testing.T) {
 	tests := []struct {
 		input string
-		want  string
+		want  int
 	}{
-		{"270F", "9999"},
-		{"AD15", "44309"},
+		{"270F", 9999},
+		{"AD15", 44309},
 	}
 	for _, test := range tests {
-		got := parsePort(test.input)
+		got, err := parsePort(test.input)
+		if err != nil {
+			t.Errorf("parsePort error: %v", err)
+			continue
+		}
 		if got != test.want {
-			t.Errorf("Error got: %s, want: %s", got, test.want)
+			t.Errorf("Error got: %d, want: %d", got, test.want)
 		}
 	}
 }
@@ -90,16 +46,17 @@ func TestParsePort(t *testing.T) {
 func TestParseLine(t *testing.T) {
 	tests := []struct {
 		line   string
-		port   string
+		port   int
 		errMsg string
 	}{
-		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", "9999", ""},
-		{"1: 0B000000:AD15 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37784 1 0000000000000000 100 0 0 10 0", "", "This port is not forwardable"},
+		{"0: 00000000:270F 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37861 1 0000000000000000 100 0 0 10 0", 9999, ""},
+		{"1: 0B000000:AD15 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 37784 1 0000000000000000 100 0 0 10 0", 0, "This port is not forwardable"},
 	}
+	uid := Uid("0")
 	for _, test := range tests {
-		port, err := parseLine(test.line, "0")
+		port, err := parseLine(test.line, uid)
 		if port != test.port {
-			t.Errorf("Error: got %s, expected: %s", port, test.port)
+			t.Errorf("Error: got %d, expected: %d", port, test.port)
 		}
 		if err != nil {
 			errMsg := err.Error()
@@ -121,9 +78,10 @@ func TestFindForwardablePorts(t *testing.T) {
    5: 00000000:1F40 00000000:0000 01 00000000:00000000 00:00000000 00000000     0        0 56126 1 0000000000000000 100 0 0 10 0
    6: 0B00007F:81A1 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 59682 1 0000000000000000 100 0 0 10 0`
 
-	expected := []string{"9999", "888", "234", "22"}
+	expected := []int{9999, 888, 234, 22}
 	expectedLen := len(expected)
-	ports := FindForwardablePorts(lines, "0")
+	uid := Uid("0")
+	ports := FindForwardablePorts(lines, uid)
 	portsLen := len(ports)
 
 	if portsLen != expectedLen {
@@ -133,7 +91,7 @@ func TestFindForwardablePorts(t *testing.T) {
 
 	for i := 0; i < expectedLen; i++ {
 		if ports[i] != expected[i] {
-			t.Errorf("Error: got %s, expected: %s", ports[i], expected[i])
+			t.Errorf("Error: got %d, expected: %d", ports[i], expected[i])
 		}
 	}
 }

@@ -2,9 +2,15 @@ package ssh
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"golang.org/x/crypto/ssh"
+	"io"
 	"log"
+	"net"
+	"strings"
+	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func CreateSshConfig(user string, password string) ssh.ClientConfig {
@@ -18,28 +24,50 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	return config
 }
 
-func Connect(config ssh.ClientConfig, host string, port string) {
-	addr := fmt.Sprintf("%s:%s", host, port)
-	client, err := ssh.Dial("tcp", addr, &config)
-	if err != nil {
-		log.Fatal("Failed to dial: ", err)
-	}
-	defer client.Close()
-
+func fetchUid(client *ssh.Client) (Uid, error) {
 	session, err := client.NewSession()
 	if err != nil {
-		log.Fatal("Failed to create new session", err)
+		return "", errors.New("Failed to create Session")
 	}
 	defer session.Close()
 
-	var b bytes.Buffer
-	session.Stdout = &b
-	command := "/usr/bin/cat /proc/net/tcp"
-
-	fmt.Println("middle")
-
-	if err := session.Run(command); err != nil {
-		log.Fatal("Faild to run command", err)
+	var output bytes.Buffer
+	session.Stdout = &output
+	if err := session.Run("cat /proc/self/status | grep Uid"); err != nil {
+		return "", errors.New("Failed to get UID")
 	}
-	fmt.Printf("output: %s", b.String())
+	items := strings.Fields(output.String())
+	uid := Uid(items[1])
+	return uid, nil
+}
+
+func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr) error {
+	client, err := ssh.Dial("tcp", addr.String(), &config)
+	if err != nil {
+		msg := "Failed to dial:" + addr.String()
+		return errors.New(msg)
+	}
+	defer client.Close()
+
+	uid, err := fetchUid(client)
+	if err != nil {
+		return err
+	}
+
+	for {
+		session, err := client.NewSession()
+		if err != nil {
+			log.Fatal("Failed to create new session", err)
+		}
+		defer session.Close()
+
+		var output bytes.Buffer
+		session.Stdout = &output
+		if err := session.Run("cat /proc/net/tcp"); err != nil {
+			log.Println("Command errpr:", err)
+		}
+		ports := FindForwardablePorts(output.String(), uid)
+		fmt.Println(ports)
+		time.Sleep(5 * time.Second)
+	}
 }

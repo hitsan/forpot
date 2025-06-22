@@ -2,16 +2,17 @@ package ssh
 
 import (
 	"errors"
-	"os/user"
 	"strconv"
 	"strings"
 )
+
+type Uid string
 
 func canListen(status string) bool {
 	return status == "0A"
 }
 
-func equalsUid(uid string, targetUid string) bool {
+func equalsUid(uid Uid, targetUid Uid) bool {
 	return uid == targetUid
 }
 
@@ -19,51 +20,50 @@ func isLocalhost(ip string) bool {
 	return ip == "00000000"
 }
 
-func canPortForward(line string, uid string) bool {
+func canPortForward(line string, uid Uid) bool {
 	items := strings.Fields(line)
 	address := items[1]
 	isLocalhostIp := isLocalhost(address[:8])
 	canLitesned := canListen(items[3])
-	isEquqlsUid := equalsUid(uid, items[7])
+	targetUid := Uid(items[7])
+	isEquqlsUid := equalsUid(uid, targetUid)
 	return isLocalhostIp && canLitesned && isEquqlsUid
 }
 
-func parsePort(portHex string) string {
-	portI64, _ := strconv.ParseInt(portHex, 16, 64)
-	port := strconv.FormatInt(portI64, 10)
-	return port
-}
-
-func GetUid() (string, error) {
-	user, err := user.Current()
+func parsePort(portHex string) (int, error) {
+	portI64, err := strconv.ParseInt(portHex, 16, 64)
 	if err != nil {
-		return "", errors.New("Failed to get user info")
+		return 0, errors.New("Failed to parse port")
 	}
-	uid := user.Uid
-	return uid, nil
+	return int(portI64), nil
 }
 
-func parseLine(line string, uid string) (string, error) {
+func parseLine(line string, uid Uid) (int, error) {
 	cpf := canPortForward(line, uid)
 	if !cpf {
-		return "", errors.New("This port is not forwardable")
+		return 0, errors.New("This port is not forwardable")
 	}
 	items := strings.Fields(line)
 	address := items[1]
 	portHex := address[9:]
-	port := parsePort(portHex)
+	port, err := parsePort(portHex)
+	if err != nil {
+		return 0, err
+	}
 	return port, nil
 }
 
-func FindForwardablePorts(netInfo string, uid string) []string {
+func FindForwardablePorts(netInfo string, uid Uid) []int {
 	splitedNetInfo := strings.Split(netInfo, "\n")
-	lines := splitedNetInfo[1:]
-	var ports []string
+	length := len(splitedNetInfo)
+	lines := splitedNetInfo[1 : length-1]
+	var ports []int
 	for _, line := range lines {
 		port, err := parseLine(line, uid)
-		if err == nil {
-			ports = append(ports, port)
+		if err != nil {
+			continue
 		}
+		ports = append(ports, port)
 	}
 	return ports
 }
