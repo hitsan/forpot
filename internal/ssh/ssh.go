@@ -3,11 +3,13 @@ package ssh
 import (
 	"bytes"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
 	"net"
+	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func CreateSshConfig(user string, password string) ssh.ClientConfig {
@@ -21,13 +23,32 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	return config
 }
 
-func Connect(config ssh.ClientConfig, host string, port string) {
+func fetchUid(client *ssh.Client) string {
+	session, err := client.NewSession()
+	if err != nil {
+		return ""
+	}
+	defer session.Close()
+
+	var output bytes.Buffer
+	session.Stdout = &output
+	if err := session.Run("cat /proc/self/status | grep Uid"); err != nil {
+		return ""
+	}
+	items := strings.Fields(output.String())
+	uid := items[1]
+	return uid
+}
+
+func InitSshConnect(config ssh.ClientConfig, host string, port string) {
 	addr := fmt.Sprintf("%s:%s", host, port)
 	client, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
 		log.Fatal("Failed to dial: ", err)
 	}
 	defer client.Close()
+
+	uid := fetchUid(client)
 
 	for {
 		session, err := client.NewSession()
@@ -41,8 +62,8 @@ func Connect(config ssh.ClientConfig, host string, port string) {
 		if err := session.Run("cat /proc/net/tcp"); err != nil {
 			log.Println("Command errpr:", err)
 		}
-		ports := FindForwardablePorts(output.String(), "0")
-		log.Println(ports)
+		ports := FindForwardablePorts(output.String(), uid)
+		fmt.Println(ports)
 		time.Sleep(5 * time.Second)
 	}
 }

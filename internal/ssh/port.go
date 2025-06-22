@@ -34,15 +34,6 @@ func parsePort(portHex string) string {
 	return port
 }
 
-func GetUid() (string, error) {
-	user, err := user.Current()
-	if err != nil {
-		return "", errors.New("Failed to get user info")
-	}
-	uid := user.Uid
-	return uid, nil
-}
-
 func parseLine(line string, uid string) (string, error) {
 	cpf := canPortForward(line, uid)
 	if !cpf {
