@@ -67,7 +67,36 @@ func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr) error {
 			log.Println("Command errpr:", err)
 		}
 		ports := FindForwardablePorts(output.String(), uid)
-		fmt.Println(ports)
+		for _, port := range ports {
+			forwardPort(config, client, addr.IP, port)
+		}
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func forwardPort(config ssh.ClientConfig, client *ssh.Client, distIP net.IP, port int) error {
+	localAddr := fmt.Sprintf("127.0.0.1:%d", port)
+	listener, err := net.Listen("tcp", localAddr)
+	if err != nil {
+		return err
+	}
+
+	dist := fmt.Sprintf("%s:%d", distIP.String(), port)
+	go func() {
+		for {
+			localConn, err := listener.Accept()
+			if err != nil {
+				fmt.Println("err")
+				continue
+			}
+			remoteConn, err := client.Dial("tcp", dist)
+			if err != nil {
+				fmt.Println("err")
+				continue
+			}
+			go io.Copy(remoteConn, localConn)
+			go io.Copy(localConn, remoteConn)
+		}
+	}()
+	return nil
 }
