@@ -13,6 +13,13 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type ForwardSession struct {
+	uid    Uid
+	distIP net.IP
+	port   int
+	client *ssh.Client
+}
+
 func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	config := ssh.ClientConfig{
 		User: user,
@@ -68,13 +75,13 @@ func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr) error {
 		}
 		ports := FindForwardablePorts(output.String(), uid)
 		for _, port := range ports {
-			forwardPort(config, client, addr.IP, port)
+			forwardPort(client, addr.IP, port)
 		}
 		time.Sleep(5 * time.Second)
 	}
 }
 
-func forwardPort(config ssh.ClientConfig, client *ssh.Client, distIP net.IP, port int) error {
+func forwardPort(client *ssh.Client, distIP net.IP, port int) error {
 	localAddr := fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
