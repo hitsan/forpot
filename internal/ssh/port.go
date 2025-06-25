@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -20,14 +21,27 @@ func isLocalhost(ip string) bool {
 	return ip == "00000000"
 }
 
+func isWellKnownPort(portStr string) bool {
+	i, err := strconv.ParseInt(portStr, 16, 64)
+	port := int(i)
+	if err != nil {
+		return true
+	}
+	if port < 1024 {
+		return true
+	}
+	return false
+}
+
 func canPortForward(line string, uid Uid) bool {
 	items := strings.Fields(line)
 	address := items[1]
 	isLocalhostIp := isLocalhost(address[:8])
+	iswkp := isWellKnownPort(address[9:])
 	canLitesned := canListen(items[3])
 	targetUid := Uid(items[7])
 	isEquqlsUid := equalsUid(uid, targetUid)
-	return isLocalhostIp && canLitesned && isEquqlsUid
+	return isLocalhostIp && canLitesned && isEquqlsUid && (!iswkp)
 }
 
 func parsePort(portHex string) (int, error) {
