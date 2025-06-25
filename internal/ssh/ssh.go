@@ -155,7 +155,7 @@ func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr, remoteIP net.IP) 
 			log.Fatal(err)
 			continue
 		}
-		ports := FindForwardablePorts(*pn, uid)
+		ports := FindForwardablePorts(pn, uid)
 		go sessionMG.DownPorts(ports)
 		go sessionMG.UpPorts(ports)
 		time.Sleep(5 * time.Second)
