@@ -1,11 +1,15 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"forpot/internal/ssh"
 	"net"
 )
 
 func main() {
+	flag.Parse()
+	fmt.Println(flag.Args())
 	config := ssh.CreateSshConfig("root", "password")
 	addr := net.TCPAddr{
 		IP:   net.ParseIP("127.0.0.1"),

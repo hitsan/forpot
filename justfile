@@ -1,8 +1,8 @@
 build:
   go build -o ./bin/forpot ./cmd/forpot/main.go
 
-run:
-  go run ./cmd/forpot
+run *args:
+  go run ./cmd/forpot {{args}}
 
 clean:
   rm -fr ./bin/*
