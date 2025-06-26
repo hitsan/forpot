@@ -20,7 +20,7 @@ type ForwardSession struct {
 }
 
 type SessionMG struct {
-	ip         string
+	remoteHost string
 	client     *ssh.Client
 	sessionMap map[int]*ForwardSession
 }
@@ -46,9 +46,9 @@ func (f *ForwardSession) Close() error {
 	return nil
 }
 
-func NewSessionMG(ip *net.IP, client *ssh.Client) *SessionMG {
+func NewSessionMG(remoteHost string, client *ssh.Client) *SessionMG {
 	return &SessionMG{
-		ip:         ip.String(),
+		remoteHost: remoteHost,
 		sessionMap: make(map[int]*ForwardSession),
 		client:     client,
 	}
@@ -62,7 +62,7 @@ func (s *SessionMG) UpPorts(ports []int) []int {
 			continue
 		}
 		localAddr := fmt.Sprintf("127.0.0.1:%d", port)
-		remoteAddr := fmt.Sprintf("%s:%d", s.ip, port)
+		remoteAddr := fmt.Sprintf("%s:%d", s.remoteHost, port)
 		fs, err := NewForwardSession(localAddr, remoteAddr)
 		if err != nil {
 			fmt.Println(err)
@@ -130,7 +130,7 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr, remoteIP net.IP) error {
+func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr, remoteHost string) error {
 	client, err := ssh.Dial("tcp", addr.String(), &config)
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr, remoteIP net.IP) 
 		return err
 	}
 
-	sessionMG := NewSessionMG(&remoteIP, client)
+	sessionMG := NewSessionMG(remoteHost, client)
 	for {
 		session, err := client.NewSession()
 		if err != nil {

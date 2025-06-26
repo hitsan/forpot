@@ -54,6 +54,6 @@ func main() {
 		IP:   net.ParseIP(host),
 		Port: 2222,
 	}
-	remoteAddr := net.ParseIP("127.0.0.1")
-	ssh.InitSshSession(config, addr, remoteAddr)
+	remoteHost := "127.0.0.1"
+	ssh.InitSshSession(config, addr, remoteHost)
 }
