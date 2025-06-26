@@ -30,7 +30,9 @@ func parseHost(arg string) (string, string, error) {
 }
 
 func main() {
+	port := flag.Int("port", 22, "Set ssh port")
 	flag.Parse()
+	fmt.Println(*port)
 	args := flag.Args()
 	if len(args) != 1 {
 		log.Fatalln("Illigal args")
@@ -41,6 +43,7 @@ func main() {
 		log.Fatalln(err)
 		os.Exit(1)
 	}
+
 	fmt.Print("Password:")
 	passwordsBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
@@ -49,10 +52,11 @@ func main() {
 	}
 	fmt.Println()
 	password := string(passwordsBytes)
+
 	config := ssh.CreateSshConfig(user, password)
 	addr := net.TCPAddr{
 		IP:   net.ParseIP(host),
-		Port: 2222,
+		Port: *port,
 	}
 	remoteHost := "127.0.0.1"
 	ssh.InitSshSession(config, addr, remoteHost)
