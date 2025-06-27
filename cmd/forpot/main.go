@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"forpot/internal/ssh"
+	"github.com/spf13/cobra"
 	"log"
 	"net"
 	"os"
@@ -30,34 +30,39 @@ func parseHost(arg string) (string, string, error) {
 }
 
 func main() {
-	port := flag.Int("port", 22, "Set ssh port")
-	flag.Parse()
-	fmt.Println(*port)
-	args := flag.Args()
-	if len(args) != 1 {
-		log.Fatalln("Illigal args")
-		os.Exit(1)
-	}
-	user, host, err := parseHost(args[0])
-	if err != nil {
-		log.Fatalln(err)
-		os.Exit(1)
-	}
+	var port int
+	cmd := &cobra.Command{
+		Use:   "forpot [user@]host",
+		Short: "Port forwarding app",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			user, host, err := parseHost(args[0])
+			if err != nil {
+				log.Fatalln(err)
+				os.Exit(1)
+			}
 
-	fmt.Print("Password:")
-	passwordsBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		log.Fatalln(err)
+			fmt.Print("Password:")
+			passwordsBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				log.Fatalln(err)
+				os.Exit(1)
+			}
+			fmt.Println()
+			password := string(passwordsBytes)
+
+			config := ssh.CreateSshConfig(user, password)
+			addr := net.TCPAddr{
+				IP:   net.ParseIP(host),
+				Port: port,
+			}
+			remoteHost := "127.0.0.1"
+			ssh.InitSshSession(config, addr, remoteHost)
+		},
+	}
+	cmd.Flags().IntVar(&port, "port", 22, "Set ssh port")
+
+	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
-	fmt.Println()
-	password := string(passwordsBytes)
-
-	config := ssh.CreateSshConfig(user, password)
-	addr := net.TCPAddr{
-		IP:   net.ParseIP(host),
-		Port: *port,
-	}
-	remoteHost := "127.0.0.1"
-	ssh.InitSshSession(config, addr, remoteHost)
 }
