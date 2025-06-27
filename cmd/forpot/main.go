@@ -45,9 +45,12 @@ func runPortForwarding(hostArg string, port int) {
 	password := string(passwordsBytes)
 
 	config := ssh.CreateSshConfig(user, password)
-	addr := fmt.Sprintf("%s:%d", host, port)
-	remoteHost := "127.0.0.1"
-	ssh.InitSshSession(config, addr, remoteHost)
+	addr := fmt.Sprintf("%s:%d", "127.0.0.1", port)
+	remoteHost := host
+	err = ssh.InitSshSession(config, addr, remoteHost)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 func main() {
@@ -62,6 +65,7 @@ func main() {
 	}
 	cmd.Flags().IntVarP(&port, "port", "p", 22, "Set ssh port")
 	if err := cmd.Execute(); err != nil {
+		log.Fatalln(err)
 		os.Exit(1)
 	}
 }
