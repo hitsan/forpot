@@ -6,7 +6,6 @@ import (
 	"forpot/internal/ssh"
 	"github.com/spf13/cobra"
 	"log"
-	"net"
 	"os"
 	"os/user"
 	"strings"
@@ -29,6 +28,28 @@ func parseHost(arg string) (string, string, error) {
 	return u.Username, items[0], nil
 }
 
+func runPortForwarding(hostArg string, port int) {
+	user, host, err := parseHost(hostArg)
+	if err != nil {
+		log.Fatalln(err)
+		os.Exit(1)
+	}
+
+	fmt.Print("Password:")
+	passwordsBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		log.Fatalln(err)
+		os.Exit(1)
+	}
+	fmt.Println()
+	password := string(passwordsBytes)
+
+	config := ssh.CreateSshConfig(user, password)
+	addr := fmt.Sprintf("%s:%d", host, port)
+	remoteHost := "127.0.0.1"
+	ssh.InitSshSession(config, addr, remoteHost)
+}
+
 func main() {
 	var port int
 	cmd := &cobra.Command{
@@ -36,32 +57,10 @@ func main() {
 		Short: "Port forwarding app",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			user, host, err := parseHost(args[0])
-			if err != nil {
-				log.Fatalln(err)
-				os.Exit(1)
-			}
-
-			fmt.Print("Password:")
-			passwordsBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-			if err != nil {
-				log.Fatalln(err)
-				os.Exit(1)
-			}
-			fmt.Println()
-			password := string(passwordsBytes)
-
-			config := ssh.CreateSshConfig(user, password)
-			addr := net.TCPAddr{
-				IP:   net.ParseIP(host),
-				Port: port,
-			}
-			remoteHost := "127.0.0.1"
-			ssh.InitSshSession(config, addr, remoteHost)
+			runPortForwarding(args[0], port)
 		},
 	}
-	cmd.Flags().IntVar(&port, "port", 22, "Set ssh port")
-
+	cmd.Flags().IntVarP(&port, "port", "p", 22, "Set ssh port")
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}

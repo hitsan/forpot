@@ -130,8 +130,8 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func InitSshSession(config ssh.ClientConfig, addr net.TCPAddr, remoteHost string) error {
-	client, err := ssh.Dial("tcp", addr.String(), &config)
+func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) error {
+	client, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
 		return err
 	}
