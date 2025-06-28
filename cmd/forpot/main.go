@@ -32,14 +32,12 @@ func runPortForwarding(hostArg string, port int) {
 	user, host, err := parseHost(hostArg)
 	if err != nil {
 		log.Fatalln(err)
-		os.Exit(1)
 	}
 
 	fmt.Print("Password:")
 	passwordsBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		log.Fatalln(err)
-		os.Exit(1)
 	}
 	fmt.Println()
 	password := string(passwordsBytes)
