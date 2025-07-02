@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -16,7 +17,8 @@ import (
 type ForwardSession struct {
 	listener   net.Listener
 	remoteAddr string
-	isClosed   bool
+	once       sync.Once
+	done       chan struct{}
 }
 
 type SessionMG struct {
@@ -33,17 +35,16 @@ func NewForwardSession(localAddr string, remoteAddr string) (*ForwardSession, er
 	f := ForwardSession{
 		listener:   listener,
 		remoteAddr: remoteAddr,
-		isClosed:   false,
+		done:       make(chan struct{}),
 	}
 	return &f, nil
 }
 
-func (f *ForwardSession) Close() error {
-	if !f.isClosed {
-		return errors.New("Already closed")
-	}
-	f.isClosed = true
-	return nil
+func (f *ForwardSession) Close() {
+	f.once.Do(func() {
+		close(f.done)
+		f.listener.Close()
+	})
 }
 
 func NewSessionMG(remoteHost string, client *ssh.Client) *SessionMG {
@@ -68,7 +69,7 @@ func (s *SessionMG) UpPorts(ports []int) []int {
 			fmt.Println(err)
 			continue
 		}
-		fs.forwardPort(s.client)
+		go fs.forwardPort(s.client)
 		s.sessionMap[port] = fs
 	}
 	return up
@@ -162,22 +163,45 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	}
 }
 
-func (f *ForwardSession) forwardPort(client *ssh.Client) error {
+func (f *ForwardSession) forwardPort(client *ssh.Client) {
+	defer f.listener.Close()
+
+	connChan := make(chan net.Conn)
+	errChan := make(chan error)
+
 	go func() {
 		for {
-			localConn, err := f.listener.Accept()
+			conn, err := f.listener.Accept()
 			if err != nil {
-				fmt.Println(err)
-				continue
+				errChan <- err
+				return
 			}
-			remoteConn, err := client.Dial("tcp", f.remoteAddr)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			go io.Copy(remoteConn, localConn)
-			go io.Copy(localConn, remoteConn)
+			connChan <- conn
 		}
 	}()
-	return nil
+
+	for {
+		select {
+		case <-f.done:
+			fmt.Println("close")
+			return
+		case err := <-errChan:
+			if !strings.Contains(err.Error(), "use of closed network connection") {
+				fmt.Println("error accepting connection:", err)
+			}
+			return
+		case localConn := <-connChan:
+			go func(conn net.Conn) {
+				defer conn.Close()
+				remoteConn, err := client.Dial("tcp", f.remoteAddr)
+				if err != nil {
+					fmt.Println("Faild to dial:", err)
+					return
+				}
+				defer remoteConn.Close()
+				go io.Copy(remoteConn, conn)
+				io.Copy(conn, remoteConn)
+			}(localConn)
+		}
+	}
 }
