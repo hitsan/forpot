@@ -64,6 +64,5 @@ func main() {
 	cmd.Flags().IntVarP(&port, "port", "p", 22, "Set ssh port")
 	if err := cmd.Execute(); err != nil {
 		log.Fatalln(err)
-		os.Exit(1)
 	}
 }
