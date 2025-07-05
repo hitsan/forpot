@@ -145,7 +145,7 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) SessionFunc[[]int] {
+func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) SessionFunc {
 	return func() error {
 		session, err := client.NewSession()
 		if err != nil {
