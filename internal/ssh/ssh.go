@@ -131,7 +131,7 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func monitorPorts(client ssh.Client, uid Uid, portChan chan []int) {
+func monitorPorts(client *ssh.Client, uid Uid, portChan chan []int) {
 	go func() {
 		for {
 			session, err := client.NewSession()
@@ -178,13 +178,12 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 		return err
 	}
 	portChan := make(chan []int)
-	monitorPorts(*client, uid, portChan)
+	monitorPorts(client, uid, portChan)
 	sessionMG := NewSessionMG(remoteHost, client)
 	createUpdateForwardingPortSession(*sessionMG, portChan)
 	for {
 		time.Sleep(5 * time.Second)
 	}
-	return nil
 }
 
 func (f *ForwardSession) forwardPort(client *ssh.Client) {
