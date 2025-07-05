@@ -162,18 +162,16 @@ func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) Se
 	}
 }
 
-func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) {
-	go func() {
-		for {
-			select {
-			case ports := <-portChan:
-				go smg.DownPorts(ports)
-				go smg.UpPorts(ports)
-			default:
-				continue
-			}
+func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) SessionFunc {
+	return func() error {
+		select {
+		case ports := <-portChan:
+			go smg.DownPorts(ports)
+			go smg.UpPorts(ports)
+		default:
 		}
-	}()
+		return nil
+	}
 }
 
 func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) error {
@@ -191,7 +189,8 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
 	createSession(monitorFunc, 1)
 	sessionMG := NewSessionMG(remoteHost, client)
-	createUpdateForwardingPortSession(*sessionMG, portChan)
+	ufp := createUpdateForwardingPortSession(*sessionMG, portChan)
+	createSession(ufp, 1)
 	for {
 		time.Sleep(5 * time.Second)
 	}
