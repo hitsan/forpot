@@ -27,12 +27,15 @@ type SessionMG struct {
 	sessionMap map[int]*ForwardSession
 }
 
-type SessionFunc[T any] func(chan T) error
+type SessionFunc func() error
 
-func createSession[T any](fn SessionFunc[T], channel chan T, sec time.Duration) {
+func createSession(fn SessionFunc, sec time.Duration) {
 	go func() {
 		for {
-			fn(channel)
+			err := fn()
+			if err != nil {
+				log.Printf("Failed")
+			}
 			time.Sleep(sec * time.Second)
 		}
 	}()
@@ -142,8 +145,8 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func createMonitorPortsFunc(client *ssh.Client, uid Uid) SessionFunc[[]int] {
-	return func(portChan chan []int) error {
+func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) SessionFunc[[]int] {
+	return func() error {
 		session, err := client.NewSession()
 		if err != nil {
 			return errors.New("Failed to create session")
