@@ -27,6 +27,8 @@ type SessionMG struct {
 	sessionMap map[int]*ForwardSession
 }
 
+type SessionFunc[T any] func(chan T) error
+
 func NewForwardSession(localAddr string, remoteAddr string) (*ForwardSession, error) {
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
@@ -129,6 +131,22 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	}
 	p := output.String()
 	return &p, nil
+}
+
+func createMonitorPortsFunc(client *ssh.Client, uid Uid) SessionFunc[[]int] {
+	return func(portChan chan []int) error {
+		session, err := client.NewSession()
+		if err != nil {
+			log.Println(err)
+		}
+		defer session.Close()
+		pn, err := fetchProcNet(session)
+		if err != nil {
+			log.Println(err)
+		}
+		ports := FindForwardablePorts(pn, uid)
+		portChan <- ports
+	}
 }
 
 func monitorPorts(client *ssh.Client, uid Uid, portChan chan []int) {
