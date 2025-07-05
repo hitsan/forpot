@@ -131,6 +131,41 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
+func monitorPorts(client ssh.Client, uid Uid, portChan chan []int) {
+	go func() {
+		for {
+			session, err := client.NewSession()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			defer session.Close()
+			pn, err := fetchProcNet(session)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			ports := FindForwardablePorts(pn, uid)
+			portChan <- ports
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
+func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) {
+	go func() {
+		for {
+			select {
+			case ports := <-portChan:
+				go smg.DownPorts(ports)
+				go smg.UpPorts(ports)
+			default:
+				continue
+			}
+		}
+	}()
+}
+
 func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) error {
 	client, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
@@ -142,25 +177,14 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	if err != nil {
 		return err
 	}
-
+	portChan := make(chan []int)
+	monitorPorts(*client, uid, portChan)
 	sessionMG := NewSessionMG(remoteHost, client)
+	createUpdateForwardingPortSession(*sessionMG, portChan)
 	for {
-		session, err := client.NewSession()
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		defer session.Close()
-		pn, err := fetchProcNet(session)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		ports := FindForwardablePorts(pn, uid)
-		go sessionMG.DownPorts(ports)
-		go sessionMG.UpPorts(ports)
 		time.Sleep(5 * time.Second)
 	}
+	return nil
 }
 
 func (f *ForwardSession) forwardPort(client *ssh.Client) {
