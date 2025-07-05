@@ -182,20 +182,6 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	sessionMG := NewSessionMG(remoteHost, client)
 	createUpdateForwardingPortSession(*sessionMG, portChan)
 	for {
-		// 	session, err := client.NewSession()
-		// 	if err != nil {
-		// 		log.Fatal(err)
-		// 		continue
-		// 	}
-		// 	defer session.Close()
-		// 	pn, err := fetchProcNet(session)
-		// 	if err != nil {
-		// 		log.Fatal(err)
-		// 		continue
-		// 	}
-		// 	ports := FindForwardablePorts(pn, uid)
-		// 	go sessionMG.DownPorts(ports)
-		// 	go sessionMG.UpPorts(ports)
 		time.Sleep(5 * time.Second)
 	}
 	return nil
