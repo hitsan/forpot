@@ -29,6 +29,15 @@ type SessionMG struct {
 
 type SessionFunc[T any] func(chan T) error
 
+func createSession[T any](fn SessionFunc[T], channel chan T, sec time.Duration) {
+	go func() {
+		for {
+			fn(channel)
+			time.Sleep(sec * time.Second)
+		}
+	}()
+}
+
 func NewForwardSession(localAddr string, remoteAddr string) (*ForwardSession, error) {
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
@@ -137,15 +146,16 @@ func createMonitorPortsFunc(client *ssh.Client, uid Uid) SessionFunc[[]int] {
 	return func(portChan chan []int) error {
 		session, err := client.NewSession()
 		if err != nil {
-			log.Println(err)
+			return errors.New("Failed to create session")
 		}
 		defer session.Close()
 		pn, err := fetchProcNet(session)
 		if err != nil {
-			log.Println(err)
+			return errors.New("Failed to fetch port info")
 		}
 		ports := FindForwardablePorts(pn, uid)
 		portChan <- ports
+		return nil
 	}
 }
 
