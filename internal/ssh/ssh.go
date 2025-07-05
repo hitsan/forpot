@@ -162,27 +162,6 @@ func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) Se
 	}
 }
 
-func monitorPorts(client *ssh.Client, uid Uid, portChan chan []int) {
-	go func() {
-		for {
-			session, err := client.NewSession()
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			defer session.Close()
-			pn, err := fetchProcNet(session)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			ports := FindForwardablePorts(pn, uid)
-			portChan <- ports
-			time.Sleep(1 * time.Second)
-		}
-	}()
-}
-
 func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) {
 	go func() {
 		for {
@@ -209,7 +188,8 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 		return err
 	}
 	portChan := make(chan []int)
-	monitorPorts(client, uid, portChan)
+	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
+	createSession(monitorFunc, 1)
 	sessionMG := NewSessionMG(remoteHost, client)
 	createUpdateForwardingPortSession(*sessionMG, portChan)
 	for {
