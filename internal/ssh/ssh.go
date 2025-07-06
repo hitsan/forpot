@@ -196,45 +196,51 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	}
 }
 
-func (f *ForwardSession) forwardPort(client *ssh.Client) {
-	defer f.listener.Close()
-
-	connChan := make(chan net.Conn)
-	errChan := make(chan error)
-
-	go func() {
-		for {
-			conn, err := f.listener.Accept()
-			if err != nil {
-				errChan <- err
-				return
-			}
-			connChan <- conn
+func (f *ForwardSession) connect(connChan chan net.Conn, errChan chan error) SessionFunc {
+	return func() error {
+		conn, err := f.listener.Accept()
+		if err != nil {
+			err := errors.New("Failed to accept")
+			errChan <- err
+			return err
 		}
-	}()
+		connChan <- conn
+		return nil
+	}
+}
 
-	for {
+func (f *ForwardSession) handleDataTransport(client *ssh.Client, connChan chan net.Conn, errChan chan error) SessionFunc {
+	return func() error {
 		select {
 		case <-f.done:
 			fmt.Println("close")
-			return
+			return nil
 		case err := <-errChan:
-			if !strings.Contains(err.Error(), "use of closed network connection") {
-				fmt.Println("error accepting connection:", err)
-			}
-			return
+			fmt.Println(err)
+			return nil
 		case localConn := <-connChan:
-			go func(conn net.Conn) {
-				defer conn.Close()
-				remoteConn, err := client.Dial("tcp", f.remoteAddr)
-				if err != nil {
-					fmt.Println("Faild to dial:", err)
-					return
-				}
-				defer remoteConn.Close()
-				go io.Copy(remoteConn, conn)
-				io.Copy(conn, remoteConn)
-			}(localConn)
+			defer localConn.Close()
+			remoteConn, err := client.Dial("tcp", f.remoteAddr)
+			if err != nil {
+				err := errors.New("Faild to dial")
+				fmt.Println(err)
+				return err
+			}
+			defer remoteConn.Close()
+			go io.Copy(remoteConn, localConn)
+			go io.Copy(localConn, remoteConn)
+		default:
 		}
+		return nil
 	}
+}
+
+func (f *ForwardSession) forwardPort(client *ssh.Client) {
+	connChan := make(chan net.Conn)
+	errChan := make(chan error)
+
+	conn := f.connect(connChan, errChan)
+	createSession(conn, 1)
+	hdt := f.handleDataTransport(client, connChan, errChan)
+	createSession(hdt, 1)
 }
