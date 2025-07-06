@@ -30,7 +30,7 @@ type SessionMG struct {
 
 type SessionFunc func() error
 
-func createSession(fn SessionFunc, sec time.Duration, done chan struct{}) {
+func createSession(fn SessionFunc, ms time.Duration, done chan struct{}) {
 	go func() {
 		for {
 			select {
@@ -43,7 +43,7 @@ func createSession(fn SessionFunc, sec time.Duration, done chan struct{}) {
 					log.Printf("Failed")
 				}
 			}
-			time.Sleep(sec * time.Second)
+			time.Sleep(ms * time.Millisecond)
 		}
 	}()
 }
@@ -195,10 +195,10 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	done := make(chan struct{})
 	portChan := make(chan []int)
 	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
-	createSession(monitorFunc, 1, done)
+	createSession(monitorFunc, 1000, done)
 	sessionMG := NewSessionMG(remoteHost, client)
 	ufp := createUpdateForwardingPortSession(*sessionMG, portChan)
-	createSession(ufp, 1, done)
+	createSession(ufp, 1000, done)
 	for {
 		time.Sleep(5 * time.Second)
 	}
@@ -254,7 +254,7 @@ func (f *ForwardSession) forwardPort(client *ssh.Client) {
 	errChan := make(chan error)
 
 	conn := f.connect(connChan, errChan)
-	createSession(conn, 1, f.done)
+	createSession(conn, 10, f.done)
 	hdt := f.handleDataTransport(client, connChan, errChan)
 	createSession(hdt, 1, f.done)
 }
