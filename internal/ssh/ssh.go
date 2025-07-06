@@ -27,6 +27,26 @@ type SessionMG struct {
 	sessionMap map[int]*ForwardSession
 }
 
+type SessionFunc func() error
+
+func createSession(fn SessionFunc, ms time.Duration, done chan struct{}) {
+	go func() {
+		for {
+			select {
+			case <-done:
+				fmt.Println("close")
+				return
+			default:
+				err := fn()
+				if err != nil {
+					log.Printf("Failed")
+				}
+			}
+			time.Sleep(ms * time.Millisecond)
+		}
+	}()
+}
+
 func NewForwardSession(localAddr string, remoteAddr string) (*ForwardSession, error) {
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
@@ -131,39 +151,33 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func monitorPorts(client ssh.Client, uid Uid, portChan chan []int) {
-	go func() {
-		for {
-			session, err := client.NewSession()
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			defer session.Close()
-			pn, err := fetchProcNet(session)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			ports := FindForwardablePorts(pn, uid)
-			portChan <- ports
-			time.Sleep(1 * time.Second)
+func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) SessionFunc {
+	return func() error {
+		session, err := client.NewSession()
+		if err != nil {
+			return errors.New("Failed to create session")
 		}
-	}()
+		defer session.Close()
+		pn, err := fetchProcNet(session)
+		if err != nil {
+			return errors.New("Failed to fetch port info")
+		}
+		ports := FindForwardablePorts(pn, uid)
+		portChan <- ports
+		return nil
+	}
 }
 
-func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) {
-	go func() {
-		for {
-			select {
-			case ports := <-portChan:
-				go smg.DownPorts(ports)
-				go smg.UpPorts(ports)
-			default:
-				continue
-			}
+func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) SessionFunc {
+	return func() error {
+		select {
+		case ports := <-portChan:
+			go smg.DownPorts(ports)
+			go smg.UpPorts(ports)
+		default:
 		}
-	}()
+		return nil
+	}
 }
 
 func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) error {
@@ -177,55 +191,54 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	if err != nil {
 		return err
 	}
+	done := make(chan struct{})
 	portChan := make(chan []int)
-	monitorPorts(*client, uid, portChan)
+	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
+	createSession(monitorFunc, 1000, done)
 	sessionMG := NewSessionMG(remoteHost, client)
-	createUpdateForwardingPortSession(*sessionMG, portChan)
+	ufp := createUpdateForwardingPortSession(*sessionMG, portChan)
+	createSession(ufp, 1000, done)
 	for {
 		time.Sleep(5 * time.Second)
 	}
-	return nil
+}
+
+func (f *ForwardSession) handleConnection(client *ssh.Client, localConn net.Conn) {
+	defer localConn.Close()
+
+	remoteConn, err := client.Dial("tcp", f.remoteAddr)
+	if err != nil {
+		fmt.Printf("Failed to dial: %v\n", err)
+		return
+	}
+	defer remoteConn.Close()
+
+	go func() {
+		io.Copy(remoteConn, localConn)
+		localConn.Close()
+	}()
+
+	io.Copy(localConn, remoteConn)
 }
 
 func (f *ForwardSession) forwardPort(client *ssh.Client) {
-	defer f.listener.Close()
-
-	connChan := make(chan net.Conn)
-	errChan := make(chan error)
-
 	go func() {
 		for {
-			conn, err := f.listener.Accept()
-			if err != nil {
-				errChan <- err
+			select {
+			case <-f.done:
 				return
+			default:
+				conn, err := f.listener.Accept()
+				if err != nil {
+					select {
+					case <-f.done:
+						return
+					default:
+						continue
+					}
+				}
+				go f.handleConnection(client, conn)
 			}
-			connChan <- conn
 		}
 	}()
-
-	for {
-		select {
-		case <-f.done:
-			fmt.Println("close")
-			return
-		case err := <-errChan:
-			if !strings.Contains(err.Error(), "use of closed network connection") {
-				fmt.Println("error accepting connection:", err)
-			}
-			return
-		case localConn := <-connChan:
-			go func(conn net.Conn) {
-				defer conn.Close()
-				remoteConn, err := client.Dial("tcp", f.remoteAddr)
-				if err != nil {
-					fmt.Println("Faild to dial:", err)
-					return
-				}
-				defer remoteConn.Close()
-				go io.Copy(remoteConn, conn)
-				io.Copy(conn, remoteConn)
-			}(localConn)
-		}
-	}
 }
