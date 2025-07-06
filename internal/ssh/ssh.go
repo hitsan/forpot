@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -204,57 +203,42 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	}
 }
 
-func (f *ForwardSession) connect(connChan chan net.Conn, errChan chan error) SessionFunc {
-	return func() error {
-		conn, err := f.listener.Accept()
-		if err != nil {
-			err := errors.New("Failed to accept")
-			errChan <- err
-			return err
-		}
-		connChan <- conn
-		return nil
-	}
-}
+func (f *ForwardSession) handleConnection(client *ssh.Client, localConn net.Conn) {
+	defer localConn.Close()
 
-func (f *ForwardSession) handleDataTransport(client *ssh.Client, connChan chan net.Conn, errChan chan error) SessionFunc {
-	return func() error {
-		select {
-		case err := <-errChan:
-			fmt.Println(err)
-			return nil
-		case localConn := <-connChan:
-			defer localConn.Close()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			remoteConn, err := client.Dial("tcp", f.remoteAddr)
-			if err != nil {
-				err := errors.New("Faild to dial")
-				fmt.Println(err)
-				return err
-			}
-			defer remoteConn.Close()
-			go func() {
-				io.Copy(remoteConn, localConn)
-				cancel()
-			}()
-			go func() {
-				io.Copy(localConn, remoteConn)
-				cancel()
-			}()
-			<-ctx.Done()
-		default:
-		}
-		return nil
+	remoteConn, err := client.Dial("tcp", f.remoteAddr)
+	if err != nil {
+		fmt.Printf("Failed to dial: %v\n", err)
+		return
 	}
+	defer remoteConn.Close()
+
+	go func() {
+		io.Copy(remoteConn, localConn)
+		localConn.Close()
+	}()
+
+	io.Copy(localConn, remoteConn)
 }
 
 func (f *ForwardSession) forwardPort(client *ssh.Client) {
-	connChan := make(chan net.Conn)
-	errChan := make(chan error)
-
-	conn := f.connect(connChan, errChan)
-	createSession(conn, 10, f.done)
-	hdt := f.handleDataTransport(client, connChan, errChan)
-	createSession(hdt, 1, f.done)
+	go func() {
+		for {
+			select {
+			case <-f.done:
+				return
+			default:
+				conn, err := f.listener.Accept()
+				if err != nil {
+					select {
+					case <-f.done:
+						return
+					default:
+						continue
+					}
+				}
+				go f.handleConnection(client, conn)
+			}
+		}
+	}()
 }
