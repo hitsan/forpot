@@ -14,14 +14,20 @@ test module="all":
     go test ./{{module}}; \
   fi
 
-up-test-server:
-  docker compose -f ./test-server/docker-compose.yml up -d
-
-down-test-server:
-  docker compose -f ./test-server/docker-compose.yml down
+test-server arg="":
+  if [ "{{arg}}" == "up" ]; then \
+    docker compose -f ./test-server/docker-compose.yml up -d; \
+  elif [ "{{arg}}" == "down" ]; then \
+    docker compose -f ./test-server/docker-compose.yml down; \
+  else \
+    echo "Illigal argument!"; \
+  fi
 
 launch port="8888":
   curl -X POST http://localhost:8000/servers/{{port}}/launch
+
+get port="8888":
+  curl -X GET http://localhost:{{port}}
 
 down port="all":
   curl -X POST http://localhost:8000/servers/{{port}}/down
