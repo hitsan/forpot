@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -220,6 +221,8 @@ func (f *ForwardSession) handleDataTransport(client *ssh.Client, connChan chan n
 			return nil
 		case localConn := <-connChan:
 			defer localConn.Close()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			remoteConn, err := client.Dial("tcp", f.remoteAddr)
 			if err != nil {
 				err := errors.New("Faild to dial")
@@ -227,8 +230,15 @@ func (f *ForwardSession) handleDataTransport(client *ssh.Client, connChan chan n
 				return err
 			}
 			defer remoteConn.Close()
-			go io.Copy(remoteConn, localConn)
-			go io.Copy(localConn, remoteConn)
+			go func() {
+				io.Copy(remoteConn, localConn)
+				cancel()
+			}()
+			go func() {
+				io.Copy(localConn, remoteConn)
+				cancel()
+			}()
+			<-ctx.Done()
 		default:
 		}
 		return nil
