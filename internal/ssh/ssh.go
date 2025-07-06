@@ -30,12 +30,18 @@ type SessionMG struct {
 
 type SessionFunc func() error
 
-func createSession(fn SessionFunc, sec time.Duration) {
+func createSession(fn SessionFunc, sec time.Duration, done chan struct{}) {
 	go func() {
 		for {
-			err := fn()
-			if err != nil {
-				log.Printf("Failed")
+			select {
+			case <-done:
+				fmt.Println("close")
+				return
+			default:
+				err := fn()
+				if err != nil {
+					log.Printf("Failed")
+				}
 			}
 			time.Sleep(sec * time.Second)
 		}
@@ -186,12 +192,13 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	if err != nil {
 		return err
 	}
+	done := make(chan struct{})
 	portChan := make(chan []int)
 	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
-	createSession(monitorFunc, 1)
+	createSession(monitorFunc, 1, done)
 	sessionMG := NewSessionMG(remoteHost, client)
 	ufp := createUpdateForwardingPortSession(*sessionMG, portChan)
-	createSession(ufp, 1)
+	createSession(ufp, 1, done)
 	for {
 		time.Sleep(5 * time.Second)
 	}
@@ -213,9 +220,6 @@ func (f *ForwardSession) connect(connChan chan net.Conn, errChan chan error) Ses
 func (f *ForwardSession) handleDataTransport(client *ssh.Client, connChan chan net.Conn, errChan chan error) SessionFunc {
 	return func() error {
 		select {
-		case <-f.done:
-			fmt.Println("close")
-			return nil
 		case err := <-errChan:
 			fmt.Println(err)
 			return nil
@@ -250,7 +254,7 @@ func (f *ForwardSession) forwardPort(client *ssh.Client) {
 	errChan := make(chan error)
 
 	conn := f.connect(connChan, errChan)
-	createSession(conn, 1)
+	createSession(conn, 1, f.done)
 	hdt := f.handleDataTransport(client, connChan, errChan)
-	createSession(hdt, 1)
+	createSession(hdt, 1, f.done)
 }
