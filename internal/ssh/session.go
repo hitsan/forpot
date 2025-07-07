@@ -29,50 +29,70 @@ func NewSessionMG(remoteHost string, client *ssh.Client) *SessionMG {
 	}
 }
 
-func (s *SessionMG) UpPorts(ports []int) []int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var up []int
-	for _, port := range ports {
-		_, ok := s.sessionMap[port]
-		if ok {
-			continue
-		}
-		localAddr := fmt.Sprintf("127.0.0.1:%d", port)
-		remoteAddr := fmt.Sprintf("%s:%d", s.remoteHost, port)
-		fs, err := NewForwardSession(localAddr, remoteAddr)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		go fs.forwardPort(s.client)
-		s.sessionMap[port] = fs
-		up = append(up, port)
-	}
-	return up
-}
-
-func (s *SessionMG) DownPorts(ports []int) []int {
+func (s *SessionMG) getPortMap() map[int]struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	pm := make(map[int]struct{})
-	for _, port := range ports {
+	for port := range s.sessionMap {
 		pm[port] = struct{}{}
 	}
-	var down []int
-	for port := range s.sessionMap {
-		_, ok := pm[port]
-		if ok {
-			continue
+	return pm
+}
+
+func (s *SessionMG) selectUpdatePorts(portChan chan []int, upPortChan chan int, downPortChan chan int) {
+	go func() {
+		for {
+			select {
+			case ports := <-portChan:
+				pm := make(map[int]struct{})
+				for _, port := range ports {
+					pm[port] = struct{}{}
+				}
+				portMap := s.getPortMap()
+				for port := range portMap {
+					_, ok := pm[port]
+					if ok {
+						continue
+					}
+					downPortChan <- port
+				}
+
+				for _, port := range ports {
+					_, ok := portMap[port]
+					if ok {
+						continue
+					}
+					upPortChan <- port
+				}
+			default:
+			}
 		}
-		session := s.sessionMap[port]
-		session.Close()
-		delete(s.sessionMap, port)
-		down = append(down, port)
-	}
-	return down
+	}()
+}
+
+func (s *SessionMG) UpdateForwardingSession(upPortChan chan int, downPortChan chan int) {
+	go func() {
+		for {
+			select {
+			case port := <-downPortChan:
+				session := s.sessionMap[port]
+				session.Close()
+				delete(s.sessionMap, port)
+			case port := <-upPortChan:
+				localAddr := fmt.Sprintf("127.0.0.1:%d", port)
+				remoteAddr := fmt.Sprintf("%s:%d", s.remoteHost, port)
+				fs, err := NewForwardSession(localAddr, remoteAddr)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				go fs.forwardPort(s.client)
+				s.sessionMap[port] = fs
+			default:
+			}
+		}
+	}()
 }
 
 func (s *SessionMG) Close() {
@@ -149,9 +169,12 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 func createUpdateForwardingPortSession(smg *SessionMG, portChan chan []int) SessionFunc {
 	return func() error {
 		select {
-		case ports := <-portChan:
-			go smg.DownPorts(ports)
-			go smg.UpPorts(ports)
+		case <-portChan:
+			upPortChan := make(chan int)
+			downPortChan := make(chan int)
+
+			smg.selectUpdatePorts(portChan, upPortChan, downPortChan)
+			smg.UpdateForwardingSession(upPortChan, downPortChan)
 		default:
 		}
 		return nil
@@ -174,4 +197,3 @@ func fetchUid(client *ssh.Client) (Uid, error) {
 	uid := Uid(items[1])
 	return uid, nil
 }
-
