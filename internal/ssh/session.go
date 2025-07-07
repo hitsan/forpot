@@ -32,7 +32,7 @@ func NewSessionMG(remoteHost string, client *ssh.Client) *SessionMG {
 func (s *SessionMG) UpPorts(ports []int) []int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	var up []int
 	for _, port := range ports {
 		_, ok := s.sessionMap[port]
@@ -56,7 +56,7 @@ func (s *SessionMG) UpPorts(ports []int) []int {
 func (s *SessionMG) DownPorts(ports []int) []int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	pm := make(map[int]struct{})
 	for _, port := range ports {
 		pm[port] = struct{}{}
@@ -78,7 +78,7 @@ func (s *SessionMG) DownPorts(ports []int) []int {
 func (s *SessionMG) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	for _, session := range s.sessionMap {
 		session.Close()
 	}
@@ -99,7 +99,7 @@ func createSession(fn SessionFunc, ms time.Duration, done chan struct{}) {
 	go func() {
 		ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-done:
@@ -126,17 +126,17 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	if err != nil {
 		return err
 	}
-	
+
 	done := make(chan struct{})
 	portChan := make(chan []int, 100)
-	
+
 	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
 	createSession(monitorFunc, 1000, done)
-	
+
 	sessionMG := NewSessionMG(remoteHost, client)
 	defer sessionMG.Close()
-	
-	ufp := createUpdateForwardingPortSession(*sessionMG, portChan)
+
+	ufp := createUpdateForwardingPortSession(sessionMG, portChan)
 	createSession(ufp, 1000, done)
 
 	select {
@@ -146,7 +146,7 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	}
 }
 
-func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) SessionFunc {
+func createUpdateForwardingPortSession(smg *SessionMG, portChan chan []int) SessionFunc {
 	return func() error {
 		select {
 		case ports := <-portChan:
@@ -174,3 +174,4 @@ func fetchUid(client *ssh.Client) (Uid, error) {
 	uid := Uid(items[1])
 	return uid, nil
 }
+
