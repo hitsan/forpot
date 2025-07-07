@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"forpot/internal/cli"
 	"forpot/internal/config"
+	"forpot/internal/signal"
 	"forpot/internal/ssh"
 	"log"
+	"sync"
 )
 
 func RunPortForwarding(hostArg string, port int) {
@@ -22,8 +24,23 @@ func RunPortForwarding(hostArg string, port int) {
 	sshConfig := config.CreateSSHConfig(user, password)
 	addr := fmt.Sprintf("%s:%d", "127.0.0.1", port)
 	remoteHost := host
-	err = ssh.InitSshSession(sshConfig, addr, remoteHost)
-	if err != nil {
-		log.Fatalln(err)
-	}
+
+	signalHandler := signal.New()
+	ctx := signalHandler.Context()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		err = ssh.InitSshSession(ctx, sshConfig, addr, remoteHost)
+		if err != nil {
+			log.Printf("SSH session error: %v", err)
+		}
+	}()
+
+	signalHandler.Wait()
+	wg.Wait()
+	signalHandler.Shutdown()
+	fmt.Println("Port forwarding stopped.")
 }
