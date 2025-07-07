@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -113,6 +114,12 @@ func (s *SessionMG) DownPorts(ports []int) []int {
 	return down
 }
 
+func (s *SessionMG) Close() {
+	for _, session := range s.sessionMap {
+		session.Close()
+	}
+}
+
 func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	config := ssh.ClientConfig{
 		User: user,
@@ -180,7 +187,7 @@ func createUpdateForwardingPortSession(smg SessionMG, portChan chan []int) Sessi
 	}
 }
 
-func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) error {
+func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, remoteHost string) error {
 	client, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
 		return err
@@ -198,8 +205,12 @@ func InitSshSession(config ssh.ClientConfig, addr string, remoteHost string) err
 	sessionMG := NewSessionMG(remoteHost, client)
 	ufp := createUpdateForwardingPortSession(*sessionMG, portChan)
 	createSession(ufp, 1000, done)
-	for {
-		time.Sleep(5 * time.Second)
+	
+	select {
+	case <-ctx.Done():
+		close(done)
+		sessionMG.Close()
+		return nil
 	}
 }
 
