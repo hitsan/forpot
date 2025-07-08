@@ -17,7 +17,6 @@ type SessionManager struct {
 	sync       *SessionSynchronizer
 }
 
-type SessionFunc func() error
 
 func NewSessionManager(remoteHost string, client *ssh.Client) *SessionManager {
 	return &SessionManager{
@@ -114,7 +113,6 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	done := make(chan struct{})
 	portChan := make(chan []int, 100)
 
-	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
 	go func() {
 		ticker := time.NewTicker(1000 * time.Millisecond)
 		defer ticker.Stop()
@@ -123,7 +121,7 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 			case <-done:
 				return
 			case <-ticker.C:
-				if err := monitorFunc(); err != nil {
+				if err := createMonitorPortsFunc(client, uid, portChan)(); err != nil {
 					fmt.Printf("Monitor function failed: %v\n", err)
 				}
 			}
@@ -133,7 +131,6 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	sessionMgr := NewSessionManager(remoteHost, client)
 	defer sessionMgr.Close()
 
-	ufp := createUpdateForwardingPortSession(sessionMgr, portChan)
 	go func() {
 		ticker := time.NewTicker(1000 * time.Millisecond)
 		defer ticker.Stop()
@@ -142,7 +139,7 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 			case <-done:
 				return
 			case <-ticker.C:
-				if err := ufp(); err != nil {
+				if err := createUpdateForwardingPortSession(sessionMgr, portChan)(); err != nil {
 					fmt.Printf("Update forwarding function failed: %v\n", err)
 				}
 			}
@@ -156,7 +153,7 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	}
 }
 
-func createUpdateForwardingPortSession(smg *SessionManager, portChan chan []int) SessionFunc {
+func createUpdateForwardingPortSession(smg *SessionManager, portChan chan []int) func() error {
 	return func() error {
 		select {
 		case <-portChan:
