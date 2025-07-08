@@ -6,41 +6,32 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
-type SessionMG struct {
+type SessionManager struct {
 	remoteHost string
 	client     *ssh.Client
-	sessionMap map[int]*ForwardSession
-	mu         sync.RWMutex
+	sync       *SessionSynchronizer
 }
 
 type SessionFunc func() error
 
-func NewSessionMG(remoteHost string, client *ssh.Client) *SessionMG {
-	return &SessionMG{
+func NewSessionManager(remoteHost string, client *ssh.Client) *SessionManager {
+	return &SessionManager{
 		remoteHost: remoteHost,
-		sessionMap: make(map[int]*ForwardSession),
 		client:     client,
+		sync:       NewSessionSynchronizer(),
 	}
 }
 
-func (s *SessionMG) getPortMap() map[int]struct{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	pm := make(map[int]struct{})
-	for port := range s.sessionMap {
-		pm[port] = struct{}{}
-	}
-	return pm
+func (s *SessionManager) getPortMap() map[int]struct{} {
+	return s.sync.GetAll()
 }
 
-func (s *SessionMG) selectUpdatePorts(portChan chan []int, upPortChan chan int, downPortChan chan int) {
+func (s *SessionManager) selectUpdatePorts(portChan chan []int, upPortChan chan int, downPortChan chan int) {
 	go func() {
 		for {
 			select {
@@ -71,14 +62,12 @@ func (s *SessionMG) selectUpdatePorts(portChan chan []int, upPortChan chan int, 
 	}()
 }
 
-func (s *SessionMG) UpdateForwardingSession(upPortChan chan int, downPortChan chan int) {
+func (s *SessionManager) UpdateForwardingSession(upPortChan chan int, downPortChan chan int) {
 	go func() {
 		for {
 			select {
 			case port := <-downPortChan:
-				session := s.sessionMap[port]
-				session.Close()
-				delete(s.sessionMap, port)
+				s.sync.Delete(port)
 			case port := <-upPortChan:
 				localAddr := fmt.Sprintf("127.0.0.1:%d", port)
 				remoteAddr := fmt.Sprintf("%s:%d", s.remoteHost, port)
@@ -88,20 +77,15 @@ func (s *SessionMG) UpdateForwardingSession(upPortChan chan int, downPortChan ch
 					continue
 				}
 				go fs.forwardPort(s.client)
-				s.sessionMap[port] = fs
+				s.sync.Set(port, fs)
 			default:
 			}
 		}
 	}()
 }
 
-func (s *SessionMG) Close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for _, session := range s.sessionMap {
-		session.Close()
-	}
+func (s *SessionManager) Close() {
+	s.sync.Close()
 }
 
 func CreateSshConfig(user string, password string) ssh.ClientConfig {
@@ -113,26 +97,6 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	return config
-}
-
-func createSession(fn SessionFunc, ms time.Duration, done chan struct{}) {
-	go func() {
-		ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-done:
-				fmt.Println("close")
-				return
-			case <-ticker.C:
-				err := fn()
-				if err != nil {
-					fmt.Printf("Session function failed: %v\n", err)
-				}
-			}
-		}
-	}()
 }
 
 func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, remoteHost string) error {
@@ -151,13 +115,39 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	portChan := make(chan []int, 100)
 
 	monitorFunc := createMonitorPortsFunc(client, uid, portChan)
-	createSession(monitorFunc, 1000, done)
+	go func() {
+		ticker := time.NewTicker(1000 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := monitorFunc(); err != nil {
+					fmt.Printf("Monitor function failed: %v\n", err)
+				}
+			}
+		}
+	}()
 
-	sessionMG := NewSessionMG(remoteHost, client)
-	defer sessionMG.Close()
+	sessionMgr := NewSessionManager(remoteHost, client)
+	defer sessionMgr.Close()
 
-	ufp := createUpdateForwardingPortSession(sessionMG, portChan)
-	createSession(ufp, 1000, done)
+	ufp := createUpdateForwardingPortSession(sessionMgr, portChan)
+	go func() {
+		ticker := time.NewTicker(1000 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := ufp(); err != nil {
+					fmt.Printf("Update forwarding function failed: %v\n", err)
+				}
+			}
+		}
+	}()
 
 	select {
 	case <-ctx.Done():
@@ -166,7 +156,7 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	}
 }
 
-func createUpdateForwardingPortSession(smg *SessionMG, portChan chan []int) SessionFunc {
+func createUpdateForwardingPortSession(smg *SessionManager, portChan chan []int) SessionFunc {
 	return func() error {
 		select {
 		case <-portChan:
