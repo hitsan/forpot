@@ -17,7 +17,7 @@ func fetchProcNet(session *ssh.Session) (*string, error) {
 	return &p, nil
 }
 
-func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) SessionFunc {
+func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) func() error {
 	return func() error {
 		session, err := client.NewSession()
 		if err != nil {
@@ -30,7 +30,7 @@ func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) Se
 			return errors.New("Failed to fetch port info")
 		}
 		
-		ports := FindForwardablePorts(pn, uid)
+		ports := findForwardablePorts(pn, uid)
 		
 		select {
 		case portChan <- ports:
