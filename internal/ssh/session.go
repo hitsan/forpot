@@ -17,7 +17,6 @@ type SessionManager struct {
 	sync       *SessionSynchronizer
 }
 
-
 func NewSessionManager(remoteHost string, client *ssh.Client) *SessionManager {
 	return &SessionManager{
 		remoteHost: remoteHost,
@@ -98,6 +97,40 @@ func CreateSshConfig(user string, password string) ssh.ClientConfig {
 	return config
 }
 
+func startPortMonitoring(client *ssh.Client, uid Uid, portChan chan []int, done chan struct{}) {
+	go func() {
+		ticker := time.NewTicker(1000 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := createMonitorPortsFunc(client, uid, portChan)(); err != nil {
+					fmt.Printf("Monitor function failed: %v\n", err)
+				}
+			}
+		}
+	}()
+}
+
+func startSessionManagement(sessionMgr *SessionManager, portChan chan []int, done chan struct{}) {
+	go func() {
+		ticker := time.NewTicker(1000 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := createUpdateForwardingPortSession(sessionMgr, portChan)(); err != nil {
+					fmt.Printf("Update forwarding function failed: %v\n", err)
+				}
+			}
+		}
+	}()
+}
+
 func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, remoteHost string) error {
 	client, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
@@ -113,38 +146,12 @@ func InitSshSession(ctx context.Context, config ssh.ClientConfig, addr string, r
 	done := make(chan struct{})
 	portChan := make(chan []int, 100)
 
-	go func() {
-		ticker := time.NewTicker(1000 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				if err := createMonitorPortsFunc(client, uid, portChan)(); err != nil {
-					fmt.Printf("Monitor function failed: %v\n", err)
-				}
-			}
-		}
-	}()
+	startPortMonitoring(client, uid, portChan, done)
 
 	sessionMgr := NewSessionManager(remoteHost, client)
 	defer sessionMgr.Close()
 
-	go func() {
-		ticker := time.NewTicker(1000 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				if err := createUpdateForwardingPortSession(sessionMgr, portChan)(); err != nil {
-					fmt.Printf("Update forwarding function failed: %v\n", err)
-				}
-			}
-		}
-	}()
+	startSessionManagement(sessionMgr, portChan, done)
 
 	select {
 	case <-ctx.Done():
