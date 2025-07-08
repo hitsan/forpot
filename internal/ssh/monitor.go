@@ -30,7 +30,7 @@ func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) fu
 			return errors.New("Failed to fetch port info")
 		}
 		
-		ports := FindForwardablePorts(pn, uid)
+		ports := findForwardablePorts(pn, uid)
 		
 		select {
 		case portChan <- ports:

@@ -61,7 +61,7 @@ func (s *SessionManager) selectUpdatePorts(portChan chan []int, upPortChan chan 
 	}()
 }
 
-func (s *SessionManager) UpdateForwardingSession(upPortChan chan int, downPortChan chan int) {
+func (s *SessionManager) updateForwardingSession(upPortChan chan int, downPortChan chan int) {
 	go func() {
 		for {
 			select {
@@ -161,7 +161,7 @@ func createUpdateForwardingPortSession(smg *SessionManager, portChan chan []int)
 			downPortChan := make(chan int)
 
 			smg.selectUpdatePorts(portChan, upPortChan, downPortChan)
-			smg.UpdateForwardingSession(upPortChan, downPortChan)
+			smg.updateForwardingSession(upPortChan, downPortChan)
 		default:
 		}
 		return nil

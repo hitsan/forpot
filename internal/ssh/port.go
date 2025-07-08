@@ -66,7 +66,7 @@ func parseLine(line string, uid Uid) (int, error) {
 	return port, nil
 }
 
-func FindForwardablePorts(netInfo *string, uid Uid) []int {
+func findForwardablePorts(netInfo *string, uid Uid) []int {
 	splitedNetInfo := strings.Split(*netInfo, "\n")
 	length := len(splitedNetInfo)
 	lines := splitedNetInfo[1 : length-1]
