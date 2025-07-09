@@ -1,10 +1,12 @@
 package ssh
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"syscall"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -74,4 +76,25 @@ func (f *ForwardSession) forwardPort(client *ssh.Client) {
 			}
 		}
 	}()
+}
+
+func SetupPortForwarding(client *ssh.Client, remoteHost string, port int, sync *SessionSynchronizer) {
+	remoteAddr := fmt.Sprintf("%s:%d", remoteHost, port)
+	
+	for count := 0; count < 10; count++ {
+		localAddr := fmt.Sprintf("127.0.0.1:%d", port+count)
+		fs, err := NewForwardSession(localAddr, remoteAddr)
+		if err != nil {
+			if errors.Is(err, syscall.EADDRINUSE) {
+				fmt.Println(count)
+				continue
+			}
+			fmt.Println(err)
+			return
+		}
+		go fs.forwardPort(client)
+		sync.Set(port, fs)
+		fmt.Println("forward port: ", port+count)
+		return
+	}
 }
