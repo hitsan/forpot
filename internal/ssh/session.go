@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -67,15 +68,24 @@ func (s *SessionManager) updateForwardingSession(upPortChan chan int, downPortCh
 			case port := <-downPortChan:
 				s.sync.Delete(port)
 			case port := <-upPortChan:
-				localAddr := fmt.Sprintf("127.0.0.1:%d", port)
 				remoteAddr := fmt.Sprintf("%s:%d", s.remoteHost, port)
-				fs, err := NewForwardSession(localAddr, remoteAddr)
-				if err != nil {
-					fmt.Println(err)
-					continue
+				for count := 0; count < 10; count++ {
+					localAddr := fmt.Sprintf("127.0.0.1:%d", port+count)
+					fs, err := NewForwardSession(localAddr, remoteAddr)
+					if err != nil {
+						if errors.Is(err, syscall.EADDRINUSE) {
+							fmt.Println(count)
+							count++
+							continue
+						}
+						fmt.Println(err)
+						return
+					}
+					go fs.forwardPort(s.client)
+					s.sync.Set(port, fs)
+					fmt.Println("forward port: ", port+count)
+					return
 				}
-				go fs.forwardPort(s.client)
-				s.sync.Set(port, fs)
 			default:
 			}
 		}
