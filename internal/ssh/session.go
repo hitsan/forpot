@@ -67,7 +67,14 @@ func (s *SessionManager) updateForwardingSession(upPortChan chan int, downPortCh
 			case port := <-downPortChan:
 				s.sync.Delete(port)
 			case port := <-upPortChan:
-				SetupPortForwarding(s.client, s.remoteHost, port, s.sync)
+				fs, actualPort, err := CreateForwardSessionWithRetry(s.remoteHost, port)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				fs.forwardPort(s.client)
+				s.sync.Set(port, fs)
+				fmt.Println("forward port: ", actualPort)
 			default:
 			}
 		}

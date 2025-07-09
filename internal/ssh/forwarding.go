@@ -78,9 +78,9 @@ func (f *ForwardSession) forwardPort(client *ssh.Client) {
 	}()
 }
 
-func SetupPortForwarding(client *ssh.Client, remoteHost string, port int, sync *SessionSynchronizer) {
+func CreateForwardSessionWithRetry(remoteHost string, port int) (*ForwardSession, int, error) {
 	remoteAddr := fmt.Sprintf("%s:%d", remoteHost, port)
-	
+
 	for count := 0; count < 10; count++ {
 		localAddr := fmt.Sprintf("127.0.0.1:%d", port+count)
 		fs, err := NewForwardSession(localAddr, remoteAddr)
@@ -89,12 +89,9 @@ func SetupPortForwarding(client *ssh.Client, remoteHost string, port int, sync *
 				fmt.Println(count)
 				continue
 			}
-			fmt.Println(err)
-			return
+			return nil, 0, err
 		}
-		go fs.forwardPort(client)
-		sync.Set(port, fs)
-		fmt.Println("forward port: ", port+count)
-		return
+		return fs, port + count, nil
 	}
+	return nil, 0, fmt.Errorf("failed to create forward session after 10 retries")
 }
