@@ -67,15 +67,14 @@ func (s *SessionManager) updateForwardingSession(upPortChan chan int, downPortCh
 			case port := <-downPortChan:
 				s.sync.Delete(port)
 			case port := <-upPortChan:
-				localAddr := fmt.Sprintf("127.0.0.1:%d", port)
-				remoteAddr := fmt.Sprintf("%s:%d", s.remoteHost, port)
-				fs, err := NewForwardSession(localAddr, remoteAddr)
+				fs, actualPort, err := CreateForwardSessionWithRetry(s.remoteHost, port)
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
-				go fs.forwardPort(s.client)
+				fs.forwardPort(s.client)
 				s.sync.Set(port, fs)
+				fmt.Println("forward port: ", actualPort)
 			default:
 			}
 		}

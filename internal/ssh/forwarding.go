@@ -1,10 +1,12 @@
 package ssh
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"syscall"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -76,3 +78,20 @@ func (f *ForwardSession) forwardPort(client *ssh.Client) {
 	}()
 }
 
+func CreateForwardSessionWithRetry(remoteHost string, port int) (*ForwardSession, int, error) {
+	remoteAddr := fmt.Sprintf("%s:%d", remoteHost, port)
+
+	for count := 0; count < 10; count++ {
+		localAddr := fmt.Sprintf("127.0.0.1:%d", port+count)
+		fs, err := NewForwardSession(localAddr, remoteAddr)
+		if err != nil {
+			if errors.Is(err, syscall.EADDRINUSE) {
+				fmt.Println(count)
+				continue
+			}
+			return nil, 0, err
+		}
+		return fs, port + count, nil
+	}
+	return nil, 0, fmt.Errorf("failed to create forward session after 10 retries")
+}
