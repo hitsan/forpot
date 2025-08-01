@@ -24,19 +24,20 @@ func createMonitorPortsFunc(client *ssh.Client, uid Uid, portChan chan []int) fu
 			return errors.New("Failed to create session")
 		}
 		defer session.Close()
-		
+
 		pn, err := fetchProcNet(session)
 		if err != nil {
 			return errors.New("Failed to fetch port info")
 		}
-		
-		ports := findForwardablePorts(pn, uid)
-		
+
+		ports := FindForwardablePorts(pn, uid)
+
 		select {
 		case portChan <- ports:
 		default:
 		}
-		
+
 		return nil
 	}
 }
+
